@@ -226,14 +226,16 @@ export default function PublishPet() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1">
                 <Calendar className="w-4 h-4 text-gray-400" />
-                年龄（月）<span className="text-rose-500">*</span>
+                年龄（岁）<span className="text-rose-500">*</span>
               </label>
               <input
                 type="number"
-                min="0"
+                min="0.1"
+                max="30"
+                step="0.1"
                 value={formData.age}
                 onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-                placeholder="如：6"
+                placeholder="例如：2.5 表示2岁半"
                 className="w-full px-4 py-3 rounded-2xl bg-cream-50 border border-cream-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none transition-all"
               />
             </div>

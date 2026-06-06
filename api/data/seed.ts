@@ -50,17 +50,17 @@ const LARGE_DOG_BREEDS = ['金毛寻回犬', '拉布拉多', '哈士奇'];
 function generateAgeForSpecies(species: Species): number {
   switch (species) {
     case 'cat':
-      return randomInt(2, 216);
+      return randomFloat(0.2, 18, 1);
     case 'dog':
-      return randomInt(2, 180);
+      return randomFloat(0.2, 15, 1);
     case 'rabbit':
-      return randomInt(2, 120);
+      return randomFloat(0.2, 10, 1);
     case 'bird':
-      return randomInt(2, 240);
+      return randomFloat(0.2, 20, 1);
     case 'other':
-      return randomInt(2, 60);
+      return randomFloat(0.2, 5, 1);
     default:
-      return randomInt(2, 120);
+      return randomFloat(0.2, 10, 1);
   }
 }
 

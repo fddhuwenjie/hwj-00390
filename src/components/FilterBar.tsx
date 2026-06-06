@@ -179,13 +179,14 @@ export default function FilterBar({
 
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">
-              年龄范围（月龄）: {ageMin} - {ageMax}
+              年龄范围（岁）: {ageMin} - {ageMax}
             </label>
             <div className="flex items-center gap-4">
               <input
                 type="range"
                 min={0}
-                max={180}
+                max={20}
+                step={0.5}
                 value={ageMin}
                 onChange={(e) => {
                   const val = Math.min(Number(e.target.value), ageMax);
@@ -196,7 +197,8 @@ export default function FilterBar({
               <input
                 type="range"
                 min={0}
-                max={180}
+                max={20}
+                step={0.5}
                 value={ageMax}
                 onChange={(e) => {
                   const val = Math.max(Number(e.target.value), ageMin);

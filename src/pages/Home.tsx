@@ -70,7 +70,7 @@ export default function Home() {
   const [gender, setGender] = useState<Gender | undefined>(undefined);
   const [neutered, setNeutered] = useState<boolean | undefined>(undefined);
   const [ageMin, setAgeMin] = useState(0);
-  const [ageMax, setAgeMax] = useState(180);
+  const [ageMax, setAgeMax] = useState(20);
   const [selectedTag, setSelectedTag] = useState<PersonalityTag | undefined>(undefined);
   const [sort, setSort] = useState<SortOrder>('newest');
 
@@ -81,7 +81,7 @@ export default function Home() {
     if (gender !== undefined) filters.gender = gender;
     if (neutered !== undefined) filters.neutered = neutered;
     if (ageMin > 0) filters.ageMin = ageMin;
-    if (ageMax < 180) filters.ageMax = ageMax;
+    if (ageMax < 20) filters.ageMax = ageMax;
     if (selectedTag) filters.tag = selectedTag;
     return filters;
   }, [keyword, species, gender, neutered, ageMin, ageMax, selectedTag, sort]);
