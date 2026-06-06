@@ -55,6 +55,9 @@ export default function Layout() {
               <NavLink to="/boarding" className={navLinkClass}>
                 寄养服务
               </NavLink>
+              <NavLink to="/boarding/training" className={navLinkClass}>
+                培训中心
+              </NavLink>
               <NavLink to="/community" className={navLinkClass}>
                 社区广场
               </NavLink>
@@ -73,6 +76,11 @@ export default function Layout() {
               {currentUser?.role === 'admin' && (
                 <NavLink to="/admin" className={navLinkClass}>
                   管理后台
+                </NavLink>
+              )}
+              {currentUser?.role === 'admin' && (
+                <NavLink to="/admin/boarding-dashboard" className={navLinkClass}>
+                  寄养大屏
                 </NavLink>
               )}
             </nav>
@@ -111,6 +119,9 @@ export default function Layout() {
             <NavLink to="/boarding" className={navLinkClass}>
               寄养
             </NavLink>
+            <NavLink to="/boarding/training" className={navLinkClass}>
+              培训
+            </NavLink>
             <NavLink to="/community" className={navLinkClass}>
               社区
             </NavLink>
@@ -129,6 +140,11 @@ export default function Layout() {
             {currentUser?.role === 'admin' && (
               <NavLink to="/admin" className={navLinkClass}>
                 管理
+              </NavLink>
+            )}
+            {currentUser?.role === 'admin' && (
+              <NavLink to="/admin/boarding-dashboard" className={navLinkClass}>
+                大屏
               </NavLink>
             )}
           </nav>

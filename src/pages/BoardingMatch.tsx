@@ -11,6 +11,12 @@ import type {
   BoardingRequest,
   BoardingCaregiverWithScore,
   BoardingMethod,
+  InsurancePlanType,
+} from '../../shared/types';
+import {
+  INSURANCE_PLAN_PRICES,
+  CAREGIVER_CERT_LEVEL_BADGES,
+  CAREGIVER_CERT_LEVEL_LABELS,
 } from '../../shared/types';
 import {
   ArrowLeft,
@@ -41,6 +47,7 @@ export default function BoardingMatch() {
   const [loading, setLoading] = useState(true);
   const [orderLoading, setOrderLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedInsurance, setSelectedInsurance] = useState<InsurancePlanType | 'none'>('none');
 
   useEffect(() => {
     if (!id) return;
@@ -67,6 +74,7 @@ export default function BoardingMatch() {
     setSelectedCaregiver(cg);
     const commonMethod = request?.acceptedMethods.find(m => true);
     if (commonMethod) setSelectedMethod(commonMethod);
+    setSelectedInsurance('none');
     setShowOrderModal(true);
   };
 
@@ -90,8 +98,10 @@ export default function BoardingMatch() {
         boardingMethod: selectedMethod,
         pricePerDay: selectedCaregiver.pricePerDay,
         handoverNotes,
+        insurancePlan: selectedInsurance !== 'none' ? selectedInsurance : undefined,
       });
-      navigate(`/boarding/orders/${order.id}`);
+      await boardingApi.createAgreement(order.id);
+      navigate(`/boarding/orders/${order.id}/agreement`);
     } catch (err) {
       setError('创建订单失败，请稍后重试');
     } finally {
@@ -266,7 +276,12 @@ export default function BoardingMatch() {
                   {selectedCaregiver.userAvatar}
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-800 text-lg">{selectedCaregiver.userName}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-gray-800 text-lg">{selectedCaregiver.userName}</p>
+                    <span className="text-base" title={CAREGIVER_CERT_LEVEL_LABELS['intermediate']}>
+                      {CAREGIVER_CERT_LEVEL_BADGES['intermediate']}
+                    </span>
+                  </div>
                   <p className="text-sm text-gray-500">
                     ⭐ {selectedCaregiver.averageRating} · {selectedCaregiver.totalOrders}单 · ¥{selectedCaregiver.pricePerDay}/天
                   </p>
@@ -313,11 +328,90 @@ export default function BoardingMatch() {
                 </div>
               </div>
 
+              <div className="space-y-3">
+                <span className="text-gray-800 font-medium block">保险选购（可选）</span>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedInsurance('none')}
+                    className={`w-full text-left p-3 rounded-xl border-2 transition-all ${
+                      selectedInsurance === 'none'
+                        ? 'border-primary-500 bg-primary-50'
+                        : 'border-cream-200 hover:border-cream-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🛡️</span>
+                        <span className={`font-medium ${selectedInsurance === 'none' ? 'text-primary-700' : 'text-gray-800'}`}>不购买</span>
+                      </div>
+                      {selectedInsurance === 'none' && <Check className="w-5 h-5 text-primary-500" />}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1 ml-7">不投保，风险由主人自行承担</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedInsurance('basic')}
+                    className={`w-full text-left p-3 rounded-xl border-2 transition-all ${
+                      selectedInsurance === 'basic'
+                        ? 'border-primary-500 bg-primary-50'
+                        : 'border-cream-200 hover:border-cream-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🥉</span>
+                        <div>
+                          <span className={`font-medium ${selectedInsurance === 'basic' ? 'text-primary-700' : 'text-gray-800'}`}>基础险</span>
+                          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full ml-2">推荐</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-700">¥{INSURANCE_PLAN_PRICES['basic']}/天 × {days}天 = ¥{INSURANCE_PLAN_PRICES['basic'] * days}</span>
+                        {selectedInsurance === 'basic' && <Check className="w-5 h-5 text-primary-500" />}
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1 ml-7">宠物医疗费最高赔付2000元</p>
+                    <p className="text-xs text-gray-400 mt-0.5 ml-7">保障：意外医疗、疾病医疗</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedInsurance('comprehensive')}
+                    className={`w-full text-left p-3 rounded-xl border-2 transition-all ${
+                      selectedInsurance === 'comprehensive'
+                        ? 'border-primary-500 bg-primary-50'
+                        : 'border-cream-200 hover:border-cream-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🥇</span>
+                        <span className={`font-medium ${selectedInsurance === 'comprehensive' ? 'text-primary-700' : 'text-gray-800'}`}>综合险</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-700">¥{INSURANCE_PLAN_PRICES['comprehensive']}/天 × {days}天 = ¥{INSURANCE_PLAN_PRICES['comprehensive'] * days}</span>
+                        {selectedInsurance === 'comprehensive' && <Check className="w-5 h-5 text-primary-500" />}
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1 ml-7">医疗+走失，最高赔付5000元</p>
+                    <p className="text-xs text-gray-400 mt-0.5 ml-7">保障：意外医疗、疾病医疗、走失赔付</p>
+                  </button>
+                </div>
+              </div>
+
               <div className="border-t border-cream-200 pt-4 space-y-2">
                 <div className="flex justify-between text-sm text-gray-600">
                   <span>基础服务费</span>
                   <span>¥{selectedCaregiver.pricePerDay} × {days}天 = ¥{selectedCaregiver.pricePerDay * days}</span>
                 </div>
+                {selectedInsurance !== 'none' && (
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>保险费</span>
+                    <span>¥{INSURANCE_PLAN_PRICES[selectedInsurance]} × {days}天 = ¥{INSURANCE_PLAN_PRICES[selectedInsurance] * days}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm text-gray-600">
                   <span>附加费</span>
                   <span>¥0</span>
@@ -328,7 +422,9 @@ export default function BoardingMatch() {
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-cream-100">
                   <span className="font-medium text-gray-800">应付总额</span>
-                  <span className="text-2xl font-bold text-primary-600">¥{selectedCaregiver.pricePerDay * days}</span>
+                  <span className="text-2xl font-bold text-primary-600">
+                    ¥{selectedCaregiver.pricePerDay * days + (selectedInsurance !== 'none' ? INSURANCE_PLAN_PRICES[selectedInsurance] * days : 0)}
+                  </span>
                 </div>
               </div>
 

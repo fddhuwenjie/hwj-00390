@@ -18,6 +18,8 @@ import type {
   BoardingRequest,
   BoardingMethod,
   DiaryAlertType,
+  InsurancePlanType,
+  AgreementStatus,
 } from '../../shared/types.js';
 import { ALL_PERSONALITY_TAGS } from '../../shared/types.js';
 
@@ -886,6 +888,86 @@ export function seed(): void {
     rating: 5,
     content: '主人交接很清晰，狗狗训练有素特别听话，是一次很愉快的合作。',
   });
+
+  const policy1 = store.createInsurancePolicy(completedOrder1.id, 'basic');
+  const policy2 = store.createInsurancePolicy(completedOrder2.id, 'comprehensive');
+
+  const claim1 = store.createInsuranceClaim({
+    policyId: policy1.id,
+    orderId: completedOrder1.id,
+    applicantId: completedOrder1.ownerId,
+    applicantName: completedOrder1.ownerName,
+    description: '寄养期间猫咪轻微感冒，带去宠物医院看病花费380元',
+    claimAmount: 380,
+    voucherPhotos: ['https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600'],
+    expenseDetails: '挂号费50元 + 检查费150元 + 药品费180元',
+  });
+  store.reviewInsuranceClaim(claim1.id, true, '情况属实，医疗费用在保额范围内，予以赔付');
+
+  store.getAllTrainingCourses();
+
+  const courseIdsForCg1 = ['tc-001', 'tc-002', 'tc-003', 'tc-004', 'tc-005'];
+  courseIdsForCg1.forEach(courseId => {
+    store.completeTrainingCourse(approvedCaregivers[0].id, courseId, randomInt(80, 100));
+  });
+
+  const courseIdsForCg2 = ['tc-001', 'tc-002'];
+  courseIdsForCg2.forEach(courseId => {
+    store.completeTrainingCourse(approvedCaregivers[1].id, courseId, randomInt(80, 100));
+  });
+
+  const courseIdsForCg3 = ['tc-001', 'tc-002', 'tc-003'];
+  courseIdsForCg3.forEach(courseId => {
+    store.completeTrainingCourse(approvedCaregivers[2].id, courseId, randomInt(80, 100));
+  });
+
+  const beijingAddresses = [
+    '北京市朝阳区望京街道xxx小区',
+    '北京市朝阳区望京SOHO附近公园',
+    '北京市朝阳区望京街道便民超市门口',
+    '北京市朝阳区望京花园社区广场',
+    '北京市朝阳区望京街道宠物医院门口',
+    '北京市朝阳区望京soho附近宠物店',
+    '北京市朝阳区望京街道中心花园',
+    '北京市朝阳区望京社区活动中心',
+  ];
+
+  for (let day = 10; day >= 6; day--) {
+    const date = dateStr(-day);
+    const times = ['08:30', '14:00', '20:00'];
+    times.forEach(time => {
+      store.addPetLocation({
+        orderId: completedOrder1.id,
+        caregiverId: approvedCaregivers[0].id,
+        date,
+        time,
+        latitude: 39.9 + randomFloat(-0.02, 0.02, 4),
+        longitude: 116.4 + randomFloat(-0.02, 0.02, 4),
+        addressText: randomChoice(beijingAddresses),
+        note: time === '08:30' ? '早晨遛弯' : time === '14:00' ? '午后散步' : '晚间活动',
+      });
+    });
+  }
+
+  store.createGeoFence({
+    orderId: completedOrder1.id,
+    centerLatitude: 39.9087,
+    centerLongitude: 116.3975,
+    radiusMeters: 2000,
+    addressText: '北京市朝阳区望京街道方圆2公里',
+  });
+
+  const agreement1 = store.createBoardingAgreement(completedOrder1.id);
+  if (agreement1) {
+    store.signAgreement(agreement1.id, 'owner');
+    store.signAgreement(agreement1.id, 'caregiver');
+  }
+
+  const agreement2 = store.createBoardingAgreement(completedOrder2.id);
+  if (agreement2) {
+    store.signAgreement(agreement2.id, 'owner');
+    store.signAgreement(agreement2.id, 'caregiver');
+  }
 
   console.log(`[Seed] 数据初始化完成:
   - 用户: ${store.users.list().length}

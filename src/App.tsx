@@ -17,6 +17,10 @@ import PublishBoarding from '@/pages/PublishBoarding';
 import RegisterCaregiver from '@/pages/RegisterCaregiver';
 import BoardingMatch from '@/pages/BoardingMatch';
 import BoardingOrderDetail from '@/pages/BoardingOrderDetail';
+import TrainingCenter from '@/pages/TrainingCenter';
+import PetTracking from '@/pages/PetTracking';
+import BoardingAgreementPage from '@/pages/BoardingAgreementPage';
+import AdminBoardingDashboard from '@/pages/AdminBoardingDashboard';
 
 export default function App() {
   return (
@@ -45,6 +49,10 @@ export default function App() {
         <Route path="/boarding/caregiver/register" element={<RegisterCaregiver />} />
         <Route path="/boarding/match/:id" element={<BoardingMatch />} />
         <Route path="/boarding/orders/:id" element={<BoardingOrderDetail />} />
+        <Route path="/boarding/training" element={<TrainingCenter />} />
+        <Route path="/boarding/orders/:id/tracking" element={<PetTracking />} />
+        <Route path="/boarding/orders/:id/agreement" element={<BoardingAgreementPage />} />
+        <Route path="/admin/boarding-dashboard" element={<AdminBoardingDashboard />} />
       </Route>
     </Routes>
   );

@@ -6,6 +6,11 @@ import {
   BOARDING_ORDER_STATUS_LABELS,
   BOARDING_METHOD_LABELS,
   DIARY_ALERT_LABELS,
+  INSURANCE_PLAN_LABELS,
+  INSURANCE_PLAN_MAX_PAYOUT,
+  INSURANCE_PLAN_PRICES,
+  INSURANCE_CLAIM_STATUS_LABELS,
+  AGREEMENT_STATUS_LABELS,
 } from '../../shared/types';
 import type {
   BoardingOrder,
@@ -13,6 +18,10 @@ import type {
   BoardingReview,
   BoardingOrderStatus,
   DiaryAlertType,
+  InsurancePolicy,
+  InsuranceClaim,
+  InsurancePlanType,
+  InsuranceClaimStatus,
 } from '../../shared/types';
 import {
   ArrowLeft,
@@ -31,9 +40,17 @@ import {
   Send,
   AlertTriangle,
   Clock,
+  Shield,
+  MapPin,
+  FileSignature,
+  ExternalLink,
+  Banknote,
+  ClipboardList,
+  Heart,
+  Search,
 } from 'lucide-react';
 
-type TabKey = 'info' | 'diary' | 'review' | 'settlement';
+type TabKey = 'info' | 'diary' | 'review' | 'settlement' | 'insurance' | 'tracking' | 'agreement';
 
 export default function BoardingOrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -63,6 +80,15 @@ export default function BoardingOrderDetail() {
   const [disputeReason, setDisputeReason] = useState('');
   const [error, setError] = useState('');
 
+  const [insurancePolicy, setInsurancePolicy] = useState<InsurancePolicy | null>(null);
+  const [insuranceClaims, setInsuranceClaims] = useState<InsuranceClaim[]>([]);
+  const [agreement, setAgreement] = useState<{ id: string; status: string; ownerSignedAt?: string; caregiverSignedAt?: string } | null>(null);
+  const [showClaimModal, setShowClaimModal] = useState(false);
+  const [claimDescription, setClaimDescription] = useState('');
+  const [claimAmount, setClaimAmount] = useState('');
+  const [claimVouchers, setClaimVouchers] = useState('');
+  const [claimExpenseDetails, setClaimExpenseDetails] = useState('');
+
   useEffect(() => {
     if (!id) return;
     loadData();
@@ -72,14 +98,20 @@ export default function BoardingOrderDetail() {
     if (!id) return;
     setLoading(true);
     try {
-      const [o, d, r] = await Promise.all([
+      const [o, d, r, policy, claims, agr] = await Promise.all([
         boardingApi.getOrder(id),
         boardingApi.getOrderDiaries(id),
         boardingApi.getOrderReviews(id),
+        boardingApi.getInsurancePolicy(id),
+        boardingApi.getInsuranceClaimsByOrder(id),
+        boardingApi.getAgreement(id),
       ]);
       setOrder(o);
       setDiaries(d);
       setReviews(r);
+      setInsurancePolicy(policy);
+      setInsuranceClaims(claims);
+      setAgreement(agr);
     } catch (err) {
       console.error(err);
     }
@@ -192,6 +224,47 @@ export default function BoardingOrderDetail() {
     setActionLoading(false);
   };
 
+  const submitClaim = async () => {
+    if (!order || !insurancePolicy || !currentUser) return;
+    if (!claimDescription || !claimAmount || !claimExpenseDetails) {
+      setError('请填写完整的理赔信息');
+      return;
+    }
+    const amount = parseFloat(claimAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setError('请输入有效的索赔金额');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const voucherUrls = claimVouchers
+        .split('\n')
+        .map(u => u.trim())
+        .filter(u => u.length > 0);
+
+      await boardingApi.createInsuranceClaim({
+        policyId: insurancePolicy.id,
+        orderId: order.id,
+        applicantId: currentUser.id,
+        applicantName: currentUser.name,
+        description: claimDescription,
+        claimAmount: amount,
+        voucherPhotos: voucherUrls,
+        expenseDetails: claimExpenseDetails,
+      });
+      setShowClaimModal(false);
+      setClaimDescription('');
+      setClaimAmount('');
+      setClaimVouchers('');
+      setClaimExpenseDetails('');
+      setError('');
+      loadData();
+    } catch (err) {
+      setError('提交理赔申请失败');
+    }
+    setActionLoading(false);
+  };
+
   if (loading) {
     return <div className="text-center py-16 text-gray-500">加载中...</div>;
   }
@@ -250,6 +323,9 @@ export default function BoardingOrderDetail() {
     { key: 'diary', label: `寄养日记 (${diaries.length})`, icon: <BookOpen className="w-4 h-4" /> },
     { key: 'review', label: `双方评价 (${reviews.length})`, icon: <Star className="w-4 h-4" /> },
     { key: 'settlement', label: '费用结算', icon: <Receipt className="w-4 h-4" /> },
+    { key: 'insurance', label: '保险保障', icon: <Shield className="w-4 h-4" /> },
+    { key: 'tracking', label: '轨迹定位', icon: <MapPin className="w-4 h-4" /> },
+    { key: 'agreement', label: '寄养协议', icon: <FileSignature className="w-4 h-4" /> },
   ];
 
   return (
@@ -565,6 +641,10 @@ export default function BoardingOrderDetail() {
                 {order.cost.totalAmount / Math.max(order.cost.days, 1)}元/天 × {order.cost.days}天
               </div>
               <div className="flex justify-between items-center pb-3 border-b border-cream-100">
+                <span className="text-gray-600">保险费</span>
+                <span className="font-medium text-gray-800">¥{order.cost.insuranceFee}</span>
+              </div>
+              <div className="flex justify-between items-center pb-3 border-b border-cream-100">
                 <span className="text-gray-600">附加费用</span>
                 <span className="font-medium text-gray-800">¥{order.cost.extraFees}</span>
               </div>
@@ -577,6 +657,238 @@ export default function BoardingOrderDetail() {
                 <span className="font-bold text-primary-600 text-2xl">¥{order.cost.totalAmount}</span>
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'insurance' && (
+          <div className="space-y-6">
+            {insurancePolicy ? (
+              <div className="bg-gradient-to-br from-sky-500 to-sky-600 rounded-2xl p-6 text-white">
+                <div className="flex items-center gap-3 mb-4">
+                  <Shield className="w-8 h-8" />
+                  <div>
+                    <p className="text-sky-100 text-sm">保险计划</p>
+                    <p className="text-2xl font-bold">{INSURANCE_PLAN_LABELS[insurancePolicy.planType]}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-6">
+                  <div>
+                    <p className="text-sky-100 text-sm">保费合计</p>
+                    <p className="text-xl font-bold">¥{insurancePolicy.totalPremium}</p>
+                  </div>
+                  <div>
+                    <p className="text-sky-100 text-sm">最高保额</p>
+                    <p className="text-xl font-bold">¥{insurancePolicy.maxPayout}</p>
+                  </div>
+                  <div>
+                    <p className="text-sky-100 text-sm">保障开始</p>
+                    <p className="font-medium">{insurancePolicy.startDate}</p>
+                  </div>
+                  <div>
+                    <p className="text-sky-100 text-sm">保障结束</p>
+                    <p className="font-medium">{insurancePolicy.endDate}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8 text-center">
+                <Shield className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p className="text-gray-500">本订单未购买保险</p>
+              </div>
+            )}
+
+            {insurancePolicy && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white border border-cream-200 rounded-xl p-5">
+                  <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <Heart className="w-5 h-5 text-rose-500" /> 保障内容
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-emerald-500" />
+                      <span className="text-gray-700">意外医疗</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-emerald-500" />
+                      <span className="text-gray-700">疾病医疗</span>
+                    </div>
+                    {insurancePolicy.planType === 'comprehensive' && (
+                      <div className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-emerald-500" />
+                        <span className="text-gray-700">走失赔付</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-white border border-cream-200 rounded-xl p-5">
+                  <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <ClipboardList className="w-5 h-5 text-violet-500" /> 理赔流程
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-xs font-bold">1</span>
+                      <span className="text-gray-700">提交理赔申请</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-xs font-bold">2</span>
+                      <span className="text-gray-700">上传凭证照片</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-xs font-bold">3</span>
+                      <span className="text-gray-700">管理员审核</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center text-xs font-bold">4</span>
+                      <span className="text-gray-700">赔付到账</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-white border border-cream-200 rounded-xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                  <Banknote className="w-5 h-5 text-amber-500" /> 理赔记录
+                </h4>
+                {isOwner && insurancePolicy && (
+                  <button
+                    onClick={() => setShowClaimModal(true)}
+                    className="bg-sky-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" /> 申请理赔
+                  </button>
+                )}
+              </div>
+              {insuranceClaims.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <Banknote className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                  <p>暂无理赔记录</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {insuranceClaims.map(claim => {
+                    const claimStatusColor = (status: string) => {
+                      switch (status) {
+                        case 'pending': return 'bg-amber-100 text-amber-700 border-amber-200';
+                        case 'approved': return 'bg-sky-100 text-sky-700 border-sky-200';
+                        case 'rejected': return 'bg-rose-100 text-rose-700 border-rose-200';
+                        case 'paid': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+                        default: return 'bg-gray-100 text-gray-600 border-gray-200';
+                      }
+                    };
+                    return (
+                      <div key={claim.id} className="border border-cream-100 rounded-lg p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="font-medium text-gray-800">{claim.description}</p>
+                            <p className="text-xs text-gray-400 mt-1">申请时间：{new Date(claim.createdAt).toLocaleString()}</p>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full border ${claimStatusColor(claim.status)}`}>
+                            {INSURANCE_CLAIM_STATUS_LABELS[claim.status]}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">索赔金额</span>
+                          <span className="font-semibold text-primary-600">¥{claim.claimAmount}</span>
+                        </div>
+                        {claim.reviewNote && (
+                          <div className="mt-3 pt-3 border-t border-cream-100">
+                            <p className="text-xs text-gray-500">审核意见</p>
+                            <p className="text-sm text-gray-700 mt-1">{claim.reviewNote}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'tracking' && (
+          <div className="space-y-4">
+            <div className="bg-white border border-cream-200 rounded-xl p-6 text-center">
+              <MapPin className="w-16 h-16 mx-auto mb-4 text-sky-500" />
+              <h3 className="text-xl font-bold text-gray-800 mb-2">GPS 轨迹定位</h3>
+              <p className="text-gray-500 mb-6 max-w-md mx-auto">
+                实时追踪宠物位置，查看寄养期间的完整运动轨迹，确保宠物安全。
+              </p>
+              <button
+                onClick={() => navigate(`/boarding/orders/${order.id}/tracking`)}
+                className="bg-sky-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-sky-600 transition-colors inline-flex items-center gap-2"
+              >
+                <Search className="w-5 h-5" /> 查看完整轨迹地图
+              </button>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-amber-800">位置信息说明</p>
+                <p className="text-sm text-amber-700 mt-1">
+                  寄养人需要通过 App 定期上传宠物位置信息。点击上方按钮可查看完整的轨迹地图和历史位置记录。
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'agreement' && (
+          <div className="space-y-4">
+            {agreement ? (
+              <div className="bg-white border border-cream-200 rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <FileSignature className="w-10 h-10 text-primary-500" />
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800">寄养服务协议</h3>
+                    <span className={`text-sm px-3 py-1 rounded-full border inline-block mt-1 ${
+                      agreement.status === 'signed'
+                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                        : agreement.status === 'rejected'
+                        ? 'bg-rose-100 text-rose-700 border-rose-200'
+                        : 'bg-amber-100 text-amber-700 border-amber-200'
+                    }`}>
+                      {AGREEMENT_STATUS_LABELS[agreement.status as keyof typeof AGREEMENT_STATUS_LABELS]}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className="bg-cream-50 rounded-lg p-4">
+                    <p className="text-xs text-gray-400 mb-1">主人签署时间</p>
+                    <p className="font-medium text-gray-800">
+                      {agreement.ownerSignedAt ? new Date(agreement.ownerSignedAt).toLocaleString() : '未签署'}
+                    </p>
+                  </div>
+                  <div className="bg-cream-50 rounded-lg p-4">
+                    <p className="text-xs text-gray-400 mb-1">寄养人签署时间</p>
+                    <p className="font-medium text-gray-800">
+                      {agreement.caregiverSignedAt ? new Date(agreement.caregiverSignedAt).toLocaleString() : '未签署'}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => navigate(`/boarding/orders/${order.id}/agreement`)}
+                  className="w-full bg-primary-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-primary-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  <FileSignature className="w-5 h-5" /> 查看完整协议
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white border border-cream-200 rounded-xl p-8 text-center">
+                <FileSignature className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p className="text-gray-500 mb-4">暂无协议信息</p>
+                <button
+                  onClick={() => navigate(`/boarding/orders/${order.id}/agreement`)}
+                  className="bg-primary-500 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-primary-600 transition-colors inline-flex items-center gap-2"
+                >
+                  <ExternalLink className="w-4 h-4" /> 前往协议页面
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -791,6 +1103,83 @@ export default function BoardingOrderDetail() {
                 className="flex-1 px-6 py-3 bg-rose-500 text-white rounded-xl font-medium hover:bg-rose-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {actionLoading ? '提交中...' : '确认投诉'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showClaimModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-cream-200 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <Banknote className="w-5 h-5 text-sky-500" /> 申请理赔
+              </h3>
+              <button onClick={() => { setShowClaimModal(false); setError(''); }} className="text-gray-400 hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6 space-y-5">
+              <div>
+                <label className="text-sm text-gray-600 block mb-1">理赔描述 *</label>
+                <textarea
+                  value={claimDescription}
+                  onChange={e => setClaimDescription(e.target.value)}
+                  placeholder="请详细描述事故情况和理赔原因..."
+                  rows={3}
+                  className="w-full px-4 py-2.5 border border-cream-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent resize-none"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-gray-600 block mb-1">索赔金额 (元) *</label>
+                <input
+                  type="number"
+                  value={claimAmount}
+                  onChange={e => setClaimAmount(e.target.value)}
+                  placeholder="请输入索赔金额"
+                  min="0"
+                  step="0.01"
+                  className="w-full px-4 py-2.5 border border-cream-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-gray-600 block mb-1">费用明细 *</label>
+                <textarea
+                  value={claimExpenseDetails}
+                  onChange={e => setClaimExpenseDetails(e.target.value)}
+                  placeholder="请列出各项费用明细，如：挂号费50元、药费300元..."
+                  rows={3}
+                  className="w-full px-4 py-2.5 border border-cream-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent resize-none"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-gray-600 block mb-1 flex items-center gap-1">
+                  <Camera className="w-4 h-4" /> 凭证照片URL（每行一张，选填）
+                </label>
+                <textarea
+                  value={claimVouchers}
+                  onChange={e => setClaimVouchers(e.target.value)}
+                  placeholder="https://...\nhttps://..."
+                  rows={3}
+                  className="w-full px-4 py-2.5 border border-cream-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent resize-none text-sm font-mono"
+                />
+              </div>
+            </div>
+            <div className="p-6 border-t border-cream-200 flex gap-3">
+              <button
+                onClick={() => { setShowClaimModal(false); setError(''); }}
+                className="flex-1 px-6 py-3 border border-cream-300 rounded-xl font-medium text-gray-700 hover:bg-cream-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={submitClaim}
+                disabled={actionLoading}
+                className="flex-1 px-6 py-3 bg-sky-500 text-white rounded-xl font-medium hover:bg-sky-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                {actionLoading ? '提交中...' : '提交申请'}
               </button>
             </div>
           </div>

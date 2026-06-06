@@ -11,6 +11,21 @@ import type {
   CaregiverIncomeStats,
   Pet,
   CaregiverStatus,
+  InsurancePolicy,
+  InsuranceClaim,
+  InsurancePlanType,
+  InsuranceClaimStatus,
+  TrainingCourse,
+  CaregiverCourseProgress,
+  CaregiverCertLevel,
+  TrainingCourseStatus,
+  PetLocationRecord,
+  GeoFence,
+  GeoFenceAlert,
+  BoardingAgreement,
+  AgreementStatus,
+  BoardingDashboardStats,
+  BoardingCaregiverExtended,
 } from '../../shared/types';
 
 export const boardingApi = {
@@ -79,6 +94,7 @@ export const boardingApi = {
     handoverNotes: string;
     extraFees?: number;
     discount?: number;
+    insurancePlan?: InsurancePlanType;
   }) =>
     apiPost<BoardingOrder>('/boarding/orders', data),
 
@@ -121,4 +137,102 @@ export const boardingApi = {
 
   getStats: () =>
     apiGet<BoardingStats>('/boarding/stats'),
+
+  getInsurancePolicy: (orderId: string) =>
+    apiGet<InsurancePolicy | null>(`/boarding/insurance/policy/${orderId}`),
+
+  createInsurancePolicy: (orderId: string, planType: InsurancePlanType) =>
+    apiPost<InsurancePolicy>('/boarding/insurance/policy', { orderId, planType }),
+
+  getInsuranceClaimsByOrder: (orderId: string) =>
+    apiGet<InsuranceClaim[]>(`/boarding/insurance/claims/${orderId}`),
+
+  getAllInsuranceClaims: (status?: InsuranceClaimStatus) =>
+    apiGet<InsuranceClaim[]>('/boarding/insurance/claims', status ? { status } : undefined),
+
+  createInsuranceClaim: (data: {
+    policyId: string;
+    orderId: string;
+    applicantId: string;
+    applicantName: string;
+    description: string;
+    claimAmount: number;
+    voucherPhotos: string[];
+    expenseDetails: string;
+  }) => apiPost<InsuranceClaim>('/boarding/insurance/claims', data),
+
+  reviewInsuranceClaim: (claimId: string, approved: boolean, reviewNote?: string) =>
+    apiPost<InsuranceClaim>(`/boarding/insurance/claims/${claimId}/review`, { approved, reviewNote }),
+
+  markClaimPaid: (claimId: string) =>
+    apiPost<InsuranceClaim>(`/boarding/insurance/claims/${claimId}/pay`, {}),
+
+  getAllTrainingCourses: () => apiGet<TrainingCourse[]>('/boarding/training/courses'),
+
+  getTrainingCourse: (id: string) => apiGet<TrainingCourse>(`/boarding/training/courses/${id}`),
+
+  getCaregiverCourseProgress: (caregiverId: string) =>
+    apiGet<CaregiverCourseProgress[]>(`/boarding/training/progress/${caregiverId}`),
+
+  completeTrainingCourse: (caregiverId: string, courseId: string, score: number) =>
+    apiPost<CaregiverCourseProgress>('/boarding/training/complete', { caregiverId, courseId, score }),
+
+  getCaregiverExtended: (id: string) =>
+    apiGet<BoardingCaregiverExtended>(`/boarding/caregivers/${id}/extended`),
+
+  getAllCaregiversExtended: (status?: string) =>
+    apiGet<BoardingCaregiverExtended[]>('/boarding/caregivers-extended', status ? { status } : undefined),
+
+  getCaregiverCertLevel: (id: string) =>
+    apiGet<{ level: CaregiverCertLevel }>(`/boarding/caregivers/${id}/cert-level`),
+
+  getOrderLocations: (orderId: string) =>
+    apiGet<PetLocationRecord[]>(`/boarding/orders/${orderId}/locations`),
+
+  getOrderLocationsByDate: (orderId: string, date: string) =>
+    apiGet<PetLocationRecord[]>(`/boarding/orders/${orderId}/locations/${date}`),
+
+  addPetLocation: (orderId: string, data: {
+    caregiverId: string;
+    date: string;
+    time: string;
+    latitude: number;
+    longitude: number;
+    addressText: string;
+    note?: string;
+  }) => apiPost<PetLocationRecord>(`/boarding/orders/${orderId}/locations`, data),
+
+  getGeoFence: (orderId: string) =>
+    apiGet<GeoFence | null>(`/boarding/orders/${orderId}/geo-fence`),
+
+  createGeoFence: (orderId: string, data: {
+    centerLatitude: number;
+    centerLongitude: number;
+    radiusMeters: number;
+    addressText: string;
+  }) => apiPost<GeoFence>(`/boarding/orders/${orderId}/geo-fence`, data),
+
+  getGeoFenceAlerts: (orderId: string) =>
+    apiGet<GeoFenceAlert[]>(`/boarding/orders/${orderId}/alerts`),
+
+  getAgreement: (orderId: string) =>
+    apiGet<BoardingAgreement | null>(`/boarding/orders/${orderId}/agreement`),
+
+  createAgreement: (orderId: string) =>
+    apiPost<BoardingAgreement>(`/boarding/orders/${orderId}/agreement`, {}),
+
+  signAgreement: (agreementId: string, signerRole: 'owner' | 'caregiver') =>
+    apiPost<BoardingAgreement>(`/boarding/agreements/${agreementId}/sign`, { signerRole }),
+
+  rejectAgreement: (agreementId: string, reason: string, rejectorRole: 'owner' | 'caregiver') =>
+    apiPost<BoardingAgreement>(`/boarding/agreements/${agreementId}/reject`, { reason, rejectorRole }),
+
+  cancelOrderWithDeduction: (orderId: string, cancelDate: string) =>
+    apiPost<BoardingOrder>(`/boarding/orders/${orderId}/cancel-with-deduction`, { cancelDate }),
+
+  getCancelDeduction: (orderId: string, cancelDate: string) =>
+    apiGet<{ percentage: number; refundAmount: number }>(`/boarding/orders/${orderId}/cancel-deduction`, { cancelDate }),
+
+  getDashboardStats: () =>
+    apiGet<BoardingDashboardStats>('/boarding/dashboard/stats'),
 };

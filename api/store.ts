@@ -37,6 +37,22 @@ import type {
   CaregiverIncomeStats,
   DiaryAlertType,
   CaregiverStatus,
+  InsurancePolicy,
+  InsuranceClaim,
+  InsurancePlanType,
+  InsuranceClaimStatus,
+  TrainingCourse,
+  CaregiverCourseProgress,
+  CaregiverCertLevel,
+  PetLocationRecord,
+  GeoFence,
+  GeoFenceAlert,
+  BoardingAgreement,
+  AgreementStatus,
+  BoardingDashboardStats,
+  TrainingCourseStatus,
+  TrainingQuiz,
+  BoardingCaregiverExtended,
 } from '../shared/types.js';
 
 type HasId = { id: string };
@@ -121,7 +137,84 @@ class MockStore {
   boardingDiaries: Collection<BoardingDiary> = new Collection<BoardingDiary>();
   boardingReviews: Collection<BoardingReview> = new Collection<BoardingReview>();
 
+  insurancePolicies: Collection<InsurancePolicy> = new Collection<InsurancePolicy>();
+  insuranceClaims: Collection<InsuranceClaim> = new Collection<InsuranceClaim>();
+  trainingCourses: Collection<TrainingCourse> = new Collection<TrainingCourse>();
+  caregiverCourseProgress: Collection<CaregiverCourseProgress> = new Collection<CaregiverCourseProgress>();
+  petLocationRecords: Collection<PetLocationRecord> = new Collection<PetLocationRecord>();
+  geoFences: Collection<GeoFence> = new Collection<GeoFence>();
+  geoFenceAlerts: Collection<GeoFenceAlert> = new Collection<GeoFenceAlert>();
+  boardingAgreements: Collection<BoardingAgreement> = new Collection<BoardingAgreement>();
+
   private static instance: MockStore;
+
+  static DEFAULT_TRAINING_COURSES: TrainingCourse[] = [
+    {
+      id: 'tc-001',
+      title: '宠物急救',
+      description: '学习宠物常见急症的识别与急救处理，包括心肺复苏、止血、中毒处理等关键技能',
+      icon: '🚑',
+      durationMinutes: 45,
+      quizzes: [
+        { id: 'q1-1', question: '宠物发生窒息时，首先应该做什么？', options: ['等待观察', '尝试清除异物并进行急救', '直接送医院', '给宠物喝水'], correctIndex: 1 },
+        { id: 'q1-2', question: '宠物外伤出血时，最有效的紧急止血方法是？', options: ['冰敷', '压迫止血', '涂抹药膏', '用绳子捆扎'], correctIndex: 1 },
+        { id: 'q1-3', question: '怀疑宠物中毒，以下哪项是正确的？', options: ['立即催吐', '保留可疑物品并尽快送医', '给宠物大量饮水', '观察几小时再说'], correctIndex: 1 },
+        { id: 'q1-4', question: '进行心肺复苏时，按压频率大约是？', options: ['30次/分钟', '60次/分钟', '100-120次/分钟', '200次/分钟'], correctIndex: 2 },
+      ],
+    },
+    {
+      id: 'tc-002',
+      title: '营养喂养',
+      description: '掌握宠物科学喂养知识，了解不同阶段营养需求、食材选择和喂食禁忌',
+      icon: '🍖',
+      durationMinutes: 40,
+      quizzes: [
+        { id: 'q2-1', question: '以下哪种食物对犬猫是有毒的？', options: ['鸡肉', '葡萄', '胡萝卜', '米饭'], correctIndex: 1 },
+        { id: 'q2-2', question: '幼犬每日喂食次数通常建议为？', options: ['1次', '2次', '3-4次', '随时都可以吃'], correctIndex: 2 },
+        { id: 'q2-3', question: '宠物最主要的营养来源应该是？', options: ['人类剩菜', '优质商业宠物粮', '自制生肉', '零食'], correctIndex: 1 },
+        { id: 'q2-4', question: '以下关于换粮的说法，正确的是？', options: ['直接突然换', '逐渐过渡7-10天', '新旧粮各一半即可', '不需要过渡期'], correctIndex: 1 },
+        { id: 'q2-5', question: '宠物必需的营养成分不包括？', options: ['蛋白质', '脂肪', '碳水化合物', '膳食纤维'], correctIndex: 3 },
+      ],
+    },
+    {
+      id: 'tc-003',
+      title: '行为管理',
+      description: '了解宠物常见行为问题的成因与矫正方法，建立良好的人宠沟通',
+      icon: '🐾',
+      durationMinutes: 50,
+      quizzes: [
+        { id: 'q3-1', question: '正面强化训练的核心是？', options: ['惩罚错误行为', '奖励期望的行为', '忽视所有行为', '体罚'], correctIndex: 1 },
+        { id: 'q3-2', question: '狗狗出现拆家行为，最可能的原因是？', options: ['报复主人', '精力过剩或焦虑', '饿了', '天气原因'], correctIndex: 1 },
+        { id: 'q3-3', question: '以下哪种方法有助于减少分离焦虑？', options: ['出门前做告别仪式', '建立出门的固定程序', '回家后立即安抚', '惩罚宠物的焦虑行为'], correctIndex: 1 },
+        { id: 'q3-4', question: '宠物行为矫正训练应遵循的原则是？', options: ['短时多次', '长时集中', '一次到位', '只在出现问题时训练'], correctIndex: 0 },
+      ],
+    },
+    {
+      id: 'tc-004',
+      title: '基础护理',
+      description: '学习宠物日常护理技能，包括梳毛、洗澡、修剪指甲、清洁耳道等',
+      icon: '🛁',
+      durationMinutes: 35,
+      quizzes: [
+        { id: 'q4-1', question: '给宠物洗澡的正确水温约为？', options: ['冷水', '30-35℃', '37-40℃', '45℃以上'], correctIndex: 2 },
+        { id: 'q4-2', question: '修剪指甲时应避免剪到？', options: ['指甲尖', '血线', '指甲根部', '肉垫'], correctIndex: 1 },
+        { id: 'q4-3', question: '宠物牙齿护理，正确的做法是？', options: ['不需要护理', '定期刷牙', '只用咬胶', '吃软粮即可'], correctIndex: 1 },
+        { id: 'q4-4', question: '耳道清洁的频率一般建议是？', options: ['每天', '每周1-2次', '每月1次', '有问题时才清洁'], correctIndex: 1 },
+      ],
+    },
+    {
+      id: 'tc-005',
+      title: '心理健康',
+      description: '关注宠物心理健康，识别压力信号，提供情感支持和环境丰富化',
+      icon: '💚',
+      durationMinutes: 30,
+      quizzes: [
+        { id: 'q5-1', question: '以下哪个是宠物压力信号？', options: ['摇尾巴', '打哈欠、舔鼻子', '趴下休息', '玩玩具'], correctIndex: 1 },
+        { id: 'q5-2', question: '环境丰富化的目的是？', options: ['装饰家居', '提供宠物精神刺激和活动', '让环境更干净', '吸引客人注意'], correctIndex: 1 },
+        { id: 'q5-3', question: '宠物出现过度舔毛（非皮肤病原因）可能是？', options: ['正常现象', '压力或焦虑的表现', '太无聊', '习惯问题'], correctIndex: 1 },
+      ],
+    },
+  ];
 
   private constructor() {}
 
@@ -893,12 +986,16 @@ class MockStore {
     handoverNotes: string;
     extraFees?: number;
     discount?: number;
+    insurancePlan?: InsurancePlanType;
   }): BoardingOrder {
     const days = this.calculateDays(data.startDate, data.endDate);
     const baseFee = days * data.pricePerDay;
     const extraFees = data.extraFees || 0;
     const discount = data.discount || 0;
-    const totalAmount = baseFee + extraFees - discount;
+    const insurancePlan = data.insurancePlan || 'basic';
+    const premiumPerDay = insurancePlan === 'comprehensive' ? 12 : 5;
+    const insuranceFee = days * premiumPerDay;
+    const totalAmount = baseFee + extraFees + insuranceFee - discount;
 
     const order: BoardingOrder = {
       id: generateId(),
@@ -914,9 +1011,10 @@ class MockStore {
       startDate: data.startDate,
       endDate: data.endDate,
       boardingMethod: data.boardingMethod,
-      cost: { baseFee, extraFees, discount, totalAmount, days },
+      cost: { baseFee, insuranceFee, extraFees, discount, totalAmount, days },
       handoverNotes: data.handoverNotes,
       status: 'pending_confirm',
+      insurancePlan,
       createdAt: now(),
     };
     this.boardingOrders.unshift(order);
@@ -1102,6 +1200,540 @@ class MockStore {
     );
     const petIds = approvedApps.map(a => a.petId);
     return this.pets.filter(p => petIds.includes(p.id));
+  }
+
+  createInsurancePolicy(orderId: string, planType: InsurancePlanType): InsurancePolicy {
+    const order = this.boardingOrders.getById(orderId);
+    const days = order ? this.calculateDays(order.startDate, order.endDate) : 1;
+    const premiumPerDay = planType === 'comprehensive' ? 12 : 5;
+    const totalPremium = days * premiumPerDay;
+    const maxPayout = planType === 'comprehensive' ? 5000 : 2000;
+
+    const policy: InsurancePolicy = {
+      id: generateId(),
+      orderId,
+      planType,
+      premiumPerDay,
+      totalPremium,
+      maxPayout,
+      startDate: order?.startDate || now(),
+      endDate: order?.endDate || now(),
+      createdAt: now(),
+    };
+    this.insurancePolicies.unshift(policy);
+    return policy;
+  }
+
+  getInsurancePolicyByOrder(orderId: string): InsurancePolicy | undefined {
+    return this.insurancePolicies.find(p => p.orderId === orderId);
+  }
+
+  createInsuranceClaim(data: Omit<InsuranceClaim, 'id' | 'status' | 'createdAt'>): InsuranceClaim {
+    const claim: InsuranceClaim = {
+      ...data,
+      id: generateId(),
+      status: 'pending',
+      createdAt: now(),
+    };
+    this.insuranceClaims.unshift(claim);
+    return claim;
+  }
+
+  getInsuranceClaimsByOrder(orderId: string): InsuranceClaim[] {
+    return this.insuranceClaims
+      .filter(c => c.orderId === orderId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  getAllInsuranceClaims(status?: InsuranceClaimStatus): InsuranceClaim[] {
+    let result = [...this.insuranceClaims];
+    if (status) {
+      result = result.filter(c => c.status === status);
+    }
+    return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  reviewInsuranceClaim(claimId: string, approved: boolean, reviewNote?: string): InsuranceClaim | null {
+    const claim = this.insuranceClaims.getById(claimId);
+    if (!claim) return null;
+    return this.insuranceClaims.update(claimId, {
+      status: approved ? 'approved' : 'rejected',
+      reviewNote,
+      reviewedAt: now(),
+    }) || null;
+  }
+
+  markClaimPaid(claimId: string): InsuranceClaim | null {
+    return this.insuranceClaims.update(claimId, {
+      status: 'paid',
+      paidAt: now(),
+    }) || null;
+  }
+
+  getAllTrainingCourses(): TrainingCourse[] {
+    if (this.trainingCourses.length === 0) {
+      MockStore.DEFAULT_TRAINING_COURSES.forEach(course => {
+        this.trainingCourses.create(course);
+      });
+    }
+    return [...this.trainingCourses];
+  }
+
+  getTrainingCourse(id: string): TrainingCourse | undefined {
+    this.getAllTrainingCourses();
+    return this.trainingCourses.getById(id);
+  }
+
+  getCaregiverCourseProgress(caregiverId: string): CaregiverCourseProgress[] {
+    return this.caregiverCourseProgress.filter(p => p.caregiverId === caregiverId);
+  }
+
+  completeTrainingCourse(caregiverId: string, courseId: string, score: number): CaregiverCourseProgress {
+    const existing = this.caregiverCourseProgress.find(p => p.caregiverId === caregiverId && p.courseId === courseId);
+    if (existing) {
+      return this.caregiverCourseProgress.update(existing.id, {
+        status: 'completed',
+        score,
+        completedAt: now(),
+      }) || existing;
+    }
+    const progress: CaregiverCourseProgress = {
+      id: generateId(),
+      caregiverId,
+      courseId,
+      status: 'completed',
+      score,
+      completedAt: now(),
+    };
+    this.caregiverCourseProgress.unshift(progress);
+    return progress;
+  }
+
+  calculateCaregiverCertLevel(caregiverId: string): CaregiverCertLevel {
+    const caregiver = this.boardingCaregivers.getById(caregiverId);
+    if (!caregiver) return 'junior';
+
+    const totalOrders = caregiver.totalOrders;
+    const avgRating = caregiver.averageRating;
+    const completedCourses = this.caregiverCourseProgress.filter(
+      p => p.caregiverId === caregiverId && p.status === 'completed'
+    ).length;
+
+    const meetsSenior = totalOrders >= 50 && avgRating >= 4.7 && completedCourses >= 5;
+    const meetsIntermediate = totalOrders >= 20 && avgRating >= 4.3 && completedCourses >= 3;
+    const meetsJunior = totalOrders >= 5 && avgRating >= 4.0 && completedCourses >= 1;
+
+    if (meetsSenior) return 'senior';
+    if (meetsIntermediate) return 'intermediate';
+    if (meetsJunior) return 'junior';
+    return 'junior';
+  }
+
+  getCaregiverExtended(caregiverId: string): BoardingCaregiverExtended | undefined {
+    const caregiver = this.boardingCaregivers.getById(caregiverId);
+    if (!caregiver) return undefined;
+
+    const certLevel = this.calculateCaregiverCertLevel(caregiverId);
+    const completedCourses = this.caregiverCourseProgress.filter(
+      p => p.caregiverId === caregiverId && p.status === 'completed'
+    ).length;
+
+    let maxPriceMultiplier = 1.0;
+    if (certLevel === 'intermediate') maxPriceMultiplier = 1.2;
+    if (certLevel === 'senior') maxPriceMultiplier = 1.5;
+
+    return {
+      ...caregiver,
+      certLevel,
+      completedCourses,
+      isPriorityRecommended: certLevel !== 'junior',
+      maxPriceMultiplier,
+    };
+  }
+
+  getAllCaregiversExtended(status?: CaregiverStatus): BoardingCaregiverExtended[] {
+    let caregivers = [...this.boardingCaregivers];
+    if (status) {
+      caregivers = caregivers.filter(c => c.status === status);
+    }
+    return caregivers
+      .map(c => this.getCaregiverExtended(c.id))
+      .filter((c): c is BoardingCaregiverExtended => c !== undefined)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  addPetLocation(data: Omit<PetLocationRecord, 'id' | 'createdAt'>): PetLocationRecord {
+    const record: PetLocationRecord = {
+      ...data,
+      id: generateId(),
+      createdAt: now(),
+    };
+    this.petLocationRecords.unshift(record);
+    return record;
+  }
+
+  getLocationsByOrder(orderId: string): PetLocationRecord[] {
+    return this.petLocationRecords
+      .filter(l => l.orderId === orderId)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  getLocationsByOrderAndDate(orderId: string, date: string): PetLocationRecord[] {
+    return this.petLocationRecords
+      .filter(l => l.orderId === orderId && l.date === date)
+      .sort((a, b) => a.time.localeCompare(b.time));
+  }
+
+  createGeoFence(data: Omit<GeoFence, 'id' | 'createdAt'>): GeoFence {
+    const fence: GeoFence = {
+      ...data,
+      id: generateId(),
+      createdAt: now(),
+    };
+    this.geoFences.unshift(fence);
+    return fence;
+  }
+
+  getGeoFenceByOrder(orderId: string): GeoFence | undefined {
+    return this.geoFences.find(f => f.orderId === orderId);
+  }
+
+  checkGeoFenceBreach(location: { latitude: number; longitude: number }, fence: GeoFence): boolean {
+    const R = 6371000;
+    const toRad = (deg: number) => deg * (Math.PI / 180);
+    const dLat = toRad(location.latitude - fence.centerLatitude);
+    const dLon = toRad(location.longitude - fence.centerLongitude);
+    const lat1 = toRad(fence.centerLatitude);
+    const lat2 = toRad(location.latitude);
+
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1) * Math.cos(lat2) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+    return distance > fence.radiusMeters;
+  }
+
+  createGeoFenceAlert(data: Omit<GeoFenceAlert, 'id' | 'createdAt'>): GeoFenceAlert {
+    const alert: GeoFenceAlert = {
+      ...data,
+      id: generateId(),
+      createdAt: now(),
+    };
+    this.geoFenceAlerts.unshift(alert);
+    return alert;
+  }
+
+  getAlertsByOrder(orderId: string): GeoFenceAlert[] {
+    return this.geoFenceAlerts
+      .filter(a => a.orderId === orderId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  generateAgreementHtml(order: BoardingOrder, request: BoardingRequest): string {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>宠物寄养服务协议</title>
+  <style>
+    body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; padding: 40px; color: #333; }
+    h1 { text-align: center; font-size: 24px; margin-bottom: 30px; color: #1a1a1a; }
+    h2 { font-size: 18px; margin-top: 24px; margin-bottom: 12px; color: #2d5016; border-bottom: 2px solid #a3d977; padding-bottom: 6px; }
+    .section { margin-bottom: 20px; line-height: 1.8; }
+    .info-row { display: flex; padding: 8px 0; border-bottom: 1px dashed #e5e5e5; }
+    .info-label { width: 120px; color: #666; flex-shrink: 0; }
+    .info-value { flex: 1; color: #1a1a1a; font-weight: 500; }
+    .clause { padding: 10px 15px; background: #f9f9f9; border-left: 4px solid #a3d977; margin: 10px 0; border-radius: 0 6px 6px 0; }
+    .signature { display: flex; justify-content: space-between; margin-top: 60px; }
+    .sig-block { text-align: center; width: 45%; }
+    .sig-line { border-bottom: 1px solid #333; margin-top: 40px; padding-bottom: 8px; }
+    .date { color: #999; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>宠物寄养服务协议</h1>
+
+  <h2>一、双方信息</h2>
+  <div class="section">
+    <h3 style="font-size: 16px; color: #444;">宠物主人</h3>
+    <div class="info-row"><div class="info-label">姓名：</div><div class="info-value">${order.ownerName}</div></div>
+    <div class="info-row"><div class="info-label">用户ID：</div><div class="info-value">${order.ownerId}</div></div>
+    <div class="info-row"><div class="info-label">紧急联系人：</div><div class="info-value">${request.emergencyContact || '无'}</div></div>
+    <h3 style="font-size: 16px; color: #444; margin-top: 16px;">寄养人</h3>
+    <div class="info-row"><div class="info-label">姓名：</div><div class="info-value">${order.caregiverName}</div></div>
+    <div class="info-row"><div class="info-label">用户ID：</div><div class="info-value">${order.caregiverId}</div></div>
+  </div>
+
+  <h2>二、宠物信息</h2>
+  <div class="section">
+    <div class="info-row"><div class="info-label">宠物姓名：</div><div class="info-value">${order.petName}</div></div>
+    <div class="info-row"><div class="info-label">物种：</div><div class="info-value">${request.petSpecies}</div></div>
+    <div class="info-row"><div class="info-label">宠物ID：</div><div class="info-value">${order.petId}</div></div>
+    <div class="info-row"><div class="info-label">饮食偏好：</div><div class="info-value">${request.specialCare.dietPreference || '无特殊要求'}</div></div>
+    <div class="info-row"><div class="info-label">用药说明：</div><div class="info-value">${request.specialCare.medication || '无'}</div></div>
+    <div class="info-row"><div class="info-label">注意事项：</div><div class="info-value">${request.specialCare.restrictions || '无'}</div></div>
+  </div>
+
+  <h2>三、服务内容</h2>
+  <div class="section">
+    <div class="info-row"><div class="info-label">寄养方式：</div><div class="info-value">${order.boardingMethod === 'home_visit' ? '上门照料' : order.boardingMethod === 'foster_home' ? '送至寄养家庭' : '宠物旅馆'}</div></div>
+    <div class="info-row"><div class="info-label">开始日期：</div><div class="info-value">${order.startDate}</div></div>
+    <div class="info-row"><div class="info-label">结束日期：</div><div class="info-value">${order.endDate}</div></div>
+    <div class="info-row"><div class="info-label">寄养天数：</div><div class="info-value">${order.cost.days} 天</div></div>
+    <div class="info-row"><div class="info-label">交接说明：</div><div class="info-value">${order.handoverNotes || '无'}</div></div>
+  </div>
+
+  <h2>四、费用明细</h2>
+  <div class="section">
+    <div class="info-row"><div class="info-label">基础费用：</div><div class="info-value">¥${order.cost.baseFee}</div></div>
+    <div class="info-row"><div class="info-label">保险费用：</div><div class="info-value">¥${order.cost.insuranceFee}</div></div>
+    <div class="info-row"><div class="info-label">其他费用：</div><div class="info-value">¥${order.cost.extraFees}</div></div>
+    <div class="info-row"><div class="info-label">优惠折扣：</div><div class="info-value">-¥${order.cost.discount}</div></div>
+    <div class="info-row" style="font-weight: 700; font-size: 16px; color: #2d5016;"><div class="info-label">总计金额：</div><div class="info-value">¥${order.cost.totalAmount}</div></div>
+  </div>
+
+  <h2>五、免责条款</h2>
+  <div class="section">
+    <div class="clause">1. 寄养人承诺以善良管理人的注意义务照顾宠物，因不可抗力或宠物自身健康原因导致的意外，寄养人不承担赔偿责任。</div>
+    <div class="clause">2. 主人应如实告知宠物的健康状况、性格特点及特殊需求，因隐瞒信息导致的损失由主人承担。</div>
+    <div class="clause">3. 寄养期间宠物出现疾病或受伤，寄养人应及时通知主人并协助就医，医疗费用由主人承担。</div>
+    <div class="clause">4. 若因主人原因延迟接回宠物，寄养人有权按实际天数加收寄养费用。</div>
+    <div class="clause">5. 保险理赔事宜按照保险公司相关条款执行，本平台仅提供协助办理服务。</div>
+  </div>
+
+  <h2>六、紧急联系人</h2>
+  <div class="section">
+    <div class="info-row"><div class="info-label">紧急联系人：</div><div class="info-value">${request.emergencyContact || '未提供'}</div></div>
+    <div class="info-row"><div class="info-label">备用联系人：</div><div class="info-value">主人 ${order.ownerName}</div></div>
+  </div>
+
+  <div class="signature">
+    <div class="sig-block">
+      <div>宠物主人签字：</div>
+      <div class="sig-line">${order.ownerName}（电子签名）</div>
+      <div class="date">签署日期：_____________</div>
+    </div>
+    <div class="sig-block">
+      <div>寄养人签字：</div>
+      <div class="sig-line">${order.caregiverName}（电子签名）</div>
+      <div class="date">签署日期：_____________</div>
+    </div>
+  </div>
+</body>
+</html>`;
+  }
+
+  createBoardingAgreement(orderId: string): BoardingAgreement | null {
+    const order = this.boardingOrders.getById(orderId);
+    if (!order) return null;
+    const request = this.boardingRequests.getById(order.requestId);
+    if (!request) return null;
+
+    const htmlContent = this.generateAgreementHtml(order, request);
+    const agreement: BoardingAgreement = {
+      id: generateId(),
+      orderId,
+      ownerId: order.ownerId,
+      ownerName: order.ownerName,
+      caregiverId: order.caregiverId,
+      caregiverName: order.caregiverName,
+      htmlContent,
+      status: 'pending_owner',
+      createdAt: now(),
+    };
+    this.boardingAgreements.unshift(agreement);
+    return agreement;
+  }
+
+  getAgreementByOrder(orderId: string): BoardingAgreement | undefined {
+    return this.boardingAgreements.find(a => a.orderId === orderId);
+  }
+
+  signAgreement(agreementId: string, signerRole: 'owner' | 'caregiver'): BoardingAgreement | null {
+    const agreement = this.boardingAgreements.getById(agreementId);
+    if (!agreement) return null;
+
+    const updates: Partial<BoardingAgreement> = {};
+    if (signerRole === 'owner') {
+      updates.ownerSignedAt = now();
+      if (agreement.status === 'pending_owner') {
+        updates.status = 'pending_caregiver';
+      }
+    } else {
+      updates.caregiverSignedAt = now();
+      if (agreement.status === 'pending_caregiver' || agreement.status === 'pending_owner') {
+        updates.status = 'signed';
+      }
+    }
+
+    if (signerRole === 'owner' && agreement.caregiverSignedAt) {
+      updates.status = 'signed';
+    }
+    if (signerRole === 'caregiver' && agreement.ownerSignedAt) {
+      updates.status = 'signed';
+    }
+
+    const signed = this.boardingAgreements.update(agreementId, updates);
+    if (signed && signed.status === 'signed') {
+      this.boardingOrders.update(agreement.orderId, { agreementStatus: 'signed', agreementSignedAt: now() });
+    }
+    return signed || null;
+  }
+
+  rejectAgreement(agreementId: string, reason: string, rejectorRole: 'owner' | 'caregiver'): BoardingAgreement | null {
+    const agreement = this.boardingAgreements.getById(agreementId);
+    if (!agreement) return null;
+
+    const result = this.boardingAgreements.update(agreementId, {
+      status: 'rejected',
+      rejectReason: reason,
+    });
+    if (result) {
+      this.boardingOrders.update(agreement.orderId, { agreementStatus: 'rejected' });
+    }
+    return result || null;
+  }
+
+  calculateCancelDeduction(order: BoardingOrder, cancelDate: string): number {
+    const start = new Date(order.startDate);
+    const cancel = new Date(cancelDate);
+    const diffMs = start.getTime() - cancel.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays > 7) return 0;
+    if (diffDays >= 3) return 0.3;
+    if (diffDays >= 1) return 0.5;
+    return 0.8;
+  }
+
+  cancelOrderWithDeduction(orderId: string, cancelDate: string): BoardingOrder | null {
+    const order = this.boardingOrders.getById(orderId);
+    if (!order) return null;
+
+    const deductionPercentage = this.calculateCancelDeduction(order, cancelDate);
+    const result = this.boardingOrders.update(orderId, {
+      status: 'cancelled',
+      cancelledAt: now(),
+      cancelDeductionPercentage: deductionPercentage,
+    });
+    return result || null;
+  }
+
+  getBoardingDashboardStats(): BoardingDashboardStats {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const nowYear = today.getFullYear();
+    const nowMonth = today.getMonth();
+
+    const activeInProgressOrders = this.boardingOrders.filter(o => o.status === 'in_progress').length;
+    const todayNewOrders = this.boardingOrders.filter(o => o.createdAt.split('T')[0] === todayStr).length;
+
+    let monthTotalRevenue = 0;
+    this.boardingOrders.forEach(o => {
+      if (o.status === 'completed') {
+        const completed = new Date(o.completedAt || o.createdAt);
+        if (completed.getFullYear() === nowYear && completed.getMonth() === nowMonth) {
+          monthTotalRevenue += o.cost.totalAmount;
+        }
+      }
+    });
+
+    const activeCaregiverCount = this.boardingCaregivers.filter(c => c.status === 'approved').length;
+
+    const heatMapData: { month: string; year: number; count: number }[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(nowYear, nowMonth - i, 1);
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      const label = `${y}-${String(m + 1).padStart(2, '0')}`;
+      let count = 0;
+      this.boardingOrders.forEach(o => {
+        const od = new Date(o.createdAt);
+        if (od.getFullYear() === y && od.getMonth() === m) count++;
+      });
+      heatMapData.push({ month: label, year: y, count });
+    }
+
+    const caregiverOrderMap = new Map<string, { orders: number; revenue: number }>();
+    this.boardingOrders.forEach(o => {
+      if (o.status === 'completed') {
+        const existing = caregiverOrderMap.get(o.caregiverId) || { orders: 0, revenue: 0 };
+        existing.orders += 1;
+        existing.revenue += o.cost.totalAmount;
+        caregiverOrderMap.set(o.caregiverId, existing);
+      }
+    });
+
+    const topCaregiversArr: { caregiverId: string; orders: number; revenue: number }[] = [];
+    caregiverOrderMap.forEach((v, k) => topCaregiversArr.push({ caregiverId: k, ...v }));
+    topCaregiversArr.sort((a, b) => b.orders - a.orders);
+    const topCaregivers = topCaregiversArr.slice(0, 10).map(item => {
+      const c = this.boardingCaregivers.getById(item.caregiverId);
+      return {
+        caregiverId: item.caregiverId,
+        caregiverName: c?.userName || '未知',
+        avatar: c?.userAvatar || '',
+        orders: item.orders,
+        rating: c?.averageRating || 0,
+        revenue: item.revenue,
+      };
+    });
+
+    const speciesCountMap = new Map<string, number>();
+    let totalForSpecies = 0;
+    this.boardingOrders.forEach(o => {
+      const req = this.boardingRequests.getById(o.requestId);
+      if (req) {
+        speciesCountMap.set(req.petSpecies, (speciesCountMap.get(req.petSpecies) || 0) + 1);
+        totalForSpecies++;
+      }
+    });
+    const speciesDistribution: { species: Species; count: number; percentage: number }[] = [];
+    speciesCountMap.forEach((count, sp) => {
+      speciesDistribution.push({
+        species: sp as Species,
+        count,
+        percentage: totalForSpecies > 0 ? Number(((count / totalForSpecies) * 100).toFixed(1)) : 0,
+      });
+    });
+
+    const completedOrders = this.boardingOrders.filter(o => o.status === 'completed');
+    let totalDays = 0;
+    completedOrders.forEach(o => { totalDays += o.cost.days; });
+    const avgBoardingDays = completedOrders.length > 0 ? Number((totalDays / completedOrders.length).toFixed(1)) : 0;
+
+    const avgOrderAmountTrend: { month: string; avgAmount: number; avgDays: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(nowYear, nowMonth - i, 1);
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      const label = `${y}-${String(m + 1).padStart(2, '0')}`;
+      const monthOrders = completedOrders.filter(o => {
+        const od = new Date(o.completedAt || o.createdAt);
+        return od.getFullYear() === y && od.getMonth() === m;
+      });
+      const monthTotalAmount = monthOrders.reduce((s, o) => s + o.cost.totalAmount, 0);
+      const monthTotalDays = monthOrders.reduce((s, o) => s + o.cost.days, 0);
+      avgOrderAmountTrend.push({
+        month: label,
+        avgAmount: monthOrders.length > 0 ? Number((monthTotalAmount / monthOrders.length).toFixed(2)) : 0,
+        avgDays: monthOrders.length > 0 ? Number((monthTotalDays / monthOrders.length).toFixed(1)) : 0,
+      });
+    }
+
+    return {
+      activeInProgressOrders,
+      todayNewOrders,
+      monthTotalRevenue,
+      activeCaregiverCount,
+      heatMapData,
+      topCaregivers,
+      speciesDistribution,
+      avgBoardingDays,
+      avgOrderAmountTrend,
+    };
   }
 }
 

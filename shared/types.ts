@@ -423,6 +423,7 @@ export interface BoardingRequest {
 
 export interface BoardingOrderCost {
   baseFee: number;
+  insuranceFee: number;
   extraFees: number;
   discount: number;
   totalAmount: number;
@@ -446,12 +447,16 @@ export interface BoardingOrder {
   cost: BoardingOrderCost;
   handoverNotes: string;
   status: BoardingOrderStatus;
+  insurancePlan?: InsurancePlanType;
+  agreementStatus?: AgreementStatus;
   createdAt: string;
   confirmedAt?: string;
+  agreementSignedAt?: string;
   startedAt?: string;
   completedAt?: string;
   cancelledAt?: string;
   disputeReason?: string;
+  cancelDeductionPercentage?: number;
 }
 
 export interface BoardingDiary {
@@ -496,3 +501,200 @@ export interface CaregiverIncomeStats {
   income: number;
   rating: number;
 }
+
+export type InsurancePlanType = 'basic' | 'comprehensive';
+export type InsuranceClaimStatus = 'pending' | 'approved' | 'rejected' | 'paid';
+export type CaregiverCertLevel = 'junior' | 'intermediate' | 'senior';
+export type TrainingCourseStatus = 'not_started' | 'in_progress' | 'completed';
+export type GeoFenceAlertStatus = 'normal' | 'breached';
+export type AgreementStatus = 'pending_owner' | 'pending_caregiver' | 'signed' | 'rejected';
+
+export const INSURANCE_PLAN_LABELS: Record<InsurancePlanType, string> = {
+  basic: '基础险',
+  comprehensive: '综合险',
+};
+
+export const INSURANCE_PLAN_PRICES: Record<InsurancePlanType, number> = {
+  basic: 5,
+  comprehensive: 12,
+};
+
+export const INSURANCE_PLAN_MAX_PAYOUT: Record<InsurancePlanType, number> = {
+  basic: 2000,
+  comprehensive: 5000,
+};
+
+export const INSURANCE_CLAIM_STATUS_LABELS: Record<InsuranceClaimStatus, string> = {
+  pending: '待审核',
+  approved: '已通过',
+  rejected: '已拒绝',
+  paid: '已赔付',
+};
+
+export const CAREGIVER_CERT_LEVEL_LABELS: Record<CaregiverCertLevel, string> = {
+  junior: '初级寄养人',
+  intermediate: '中级寄养人',
+  senior: '高级寄养人',
+};
+
+export const CAREGIVER_CERT_LEVEL_BADGES: Record<CaregiverCertLevel, string> = {
+  junior: '🥉',
+  intermediate: '🥈',
+  senior: '🥇',
+};
+
+export const TRAINING_COURSE_STATUS_LABELS: Record<TrainingCourseStatus, string> = {
+  not_started: '未开始',
+  in_progress: '学习中',
+  completed: '已完成',
+};
+
+export const AGREEMENT_STATUS_LABELS: Record<AgreementStatus, string> = {
+  pending_owner: '待主人签署',
+  pending_caregiver: '待寄养人签署',
+  signed: '已签署',
+  rejected: '已拒绝',
+};
+
+export interface InsurancePolicy {
+  id: string;
+  orderId: string;
+  planType: InsurancePlanType;
+  premiumPerDay: number;
+  totalPremium: number;
+  maxPayout: number;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+}
+
+export interface InsuranceClaim {
+  id: string;
+  policyId: string;
+  orderId: string;
+  applicantId: string;
+  applicantName: string;
+  description: string;
+  claimAmount: number;
+  voucherPhotos: string[];
+  expenseDetails: string;
+  status: InsuranceClaimStatus;
+  reviewNote?: string;
+  reviewedAt?: string;
+  paidAt?: string;
+  createdAt: string;
+}
+
+export interface TrainingQuiz {
+  id: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+}
+
+export interface TrainingCourse {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  durationMinutes: number;
+  quizzes: TrainingQuiz[];
+}
+
+export interface CaregiverCourseProgress {
+  id: string;
+  caregiverId: string;
+  courseId: string;
+  status: TrainingCourseStatus;
+  score?: number;
+  completedAt?: string;
+}
+
+export interface PetLocationRecord {
+  id: string;
+  orderId: string;
+  caregiverId: string;
+  date: string;
+  time: string;
+  latitude: number;
+  longitude: number;
+  addressText: string;
+  note?: string;
+  createdAt: string;
+}
+
+export interface GeoFence {
+  id: string;
+  orderId: string;
+  centerLatitude: number;
+  centerLongitude: number;
+  radiusMeters: number;
+  addressText: string;
+  createdAt: string;
+}
+
+export interface GeoFenceAlert {
+  id: string;
+  fenceId: string;
+  orderId: string;
+  locationId: string;
+  latitude: number;
+  longitude: number;
+  addressText: string;
+  status: GeoFenceAlertStatus;
+  createdAt: string;
+  notifiedAt?: string;
+}
+
+export interface BoardingAgreement {
+  id: string;
+  orderId: string;
+  ownerId: string;
+  ownerName: string;
+  caregiverId: string;
+  caregiverName: string;
+  htmlContent: string;
+  status: AgreementStatus;
+  ownerSignedAt?: string;
+  caregiverSignedAt?: string;
+  rejectReason?: string;
+  createdAt: string;
+}
+
+export interface BoardingDashboardStats {
+  activeInProgressOrders: number;
+  todayNewOrders: number;
+  monthTotalRevenue: number;
+  activeCaregiverCount: number;
+  heatMapData: { month: string; year: number; count: number }[];
+  topCaregivers: { caregiverId: string; caregiverName: string; avatar: string; orders: number; rating: number; revenue: number }[];
+  speciesDistribution: { species: Species; count: number; percentage: number }[];
+  avgBoardingDays: number;
+  avgOrderAmountTrend: { month: string; avgAmount: number; avgDays: number }[];
+}
+
+export interface BoardingCaregiverExtended extends BoardingCaregiver {
+  certLevel: CaregiverCertLevel;
+  completedCourses: number;
+  isPriorityRecommended: boolean;
+  maxPriceMultiplier: number;
+}
+
+export type ExtendedBoardingOrderStatus = BoardingOrderStatus | 'agreement_pending' | 'agreement_signed';
+
+export const EXTENDED_BOARDING_ORDER_STATUS_LABELS: Record<ExtendedBoardingOrderStatus, string> = {
+  ...BOARDING_ORDER_STATUS_LABELS,
+  agreement_pending: '协议待签',
+  agreement_signed: '协议已签',
+};
+
+export const BOARDING_ORDER_STATUS_LABELS_V2: Record<ExtendedBoardingOrderStatus, string> = {
+  pending_confirm: '待确认',
+  agreement_pending: '协议待签',
+  confirmed: '已确认',
+  agreement_signed: '协议已签',
+  in_progress: '进行中',
+  completed: '已完成',
+  cancelled: '已取消',
+  disputed: '争议中',
+};
