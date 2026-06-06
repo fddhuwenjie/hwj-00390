@@ -14,6 +14,11 @@ import {
   MessageCircle,
   CheckCircle,
   AlertCircle,
+  Syringe,
+  Bug,
+  Stethoscope,
+  FileText,
+  Plus,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn, formatAge } from '@/lib/utils';
@@ -37,6 +42,13 @@ const TAG_COLORS = [
   'bg-fuchsia-100 text-fuchsia-600',
 ];
 
+type DetailTab = 'info' | 'health';
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export default function PetDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -46,10 +58,12 @@ export default function PetDetail() {
     pets,
     favorites,
     follows,
+    healthProfile,
     fetchPet,
     fetchPets,
     fetchFavorites,
     fetchFollows,
+    fetchHealthProfile,
     addHistory,
     toggleFavorite,
     toggleFollow,
@@ -61,6 +75,7 @@ export default function PetDetail() {
   const [pet, setPet] = useState<Pet | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<DetailTab>('info');
 
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showForm, setShowForm] = useState(false);
@@ -90,6 +105,7 @@ export default function PetDetail() {
         setPet(result);
         setCurrentPhotoIndex(0);
         setSubmitSuccess(false);
+        await fetchHealthProfile(id);
 
         if (currentUser) {
           await addHistory(currentUser.id, result);
@@ -104,7 +120,7 @@ export default function PetDetail() {
     };
 
     loadData();
-  }, [id, currentUser, fetchPet, addHistory, fetchFavorites, fetchFollows]);
+  }, [id, currentUser, fetchPet, addHistory, fetchFavorites, fetchFollows, fetchHealthProfile]);
 
   useEffect(() => {
     fetchPets();
@@ -116,6 +132,44 @@ export default function PetDetail() {
       .filter((p) => p.id !== pet.id && p.species === pet.species && !p.isAdopted)
       .slice(0, 4);
   }, [pets, pet]);
+
+  const timelineEvents = useMemo(() => {
+    if (!healthProfile) return [];
+    const events: {
+      date: string;
+      type: 'vaccine' | 'deworming' | 'checkup';
+      title: string;
+      description?: string;
+      nextDate?: string;
+    }[] = [];
+
+    healthProfile.vaccines.forEach((v) => {
+      events.push({
+        date: v.date,
+        type: 'vaccine',
+        title: `疫苗接种：${v.vaccineName}`,
+        nextDate: v.nextDate,
+      });
+    });
+    healthProfile.dewormings.forEach((d) => {
+      events.push({
+        date: d.date,
+        type: 'deworming',
+        title: `驱虫：${d.dewormingType}`,
+      });
+    });
+    healthProfile.checkups.forEach((c) => {
+      events.push({
+        date: c.date,
+        type: 'checkup',
+        title: c.title,
+        description: c.description,
+      });
+    });
+
+    events.sort((a, b) => b.date.localeCompare(a.date));
+    return events;
+  }, [healthProfile]);
 
   const showNotification = (message: string) => {
     setNotification(message);
@@ -198,11 +252,6 @@ export default function PetDetail() {
   const isFav = currentUser ? isFavorite(pet.id) : false;
   const isFol = currentUser ? isFollowing(pet.id) : false;
 
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  };
-
   return (
     <div className="animate-fade-in relative pb-12">
       {notification && (
@@ -214,7 +263,7 @@ export default function PetDetail() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         <div className="space-y-4">
           <div className="relative">
             <div className="relative h-[400px] rounded-2xl overflow-hidden shadow-card bg-cream-100">
@@ -425,6 +474,104 @@ export default function PetDetail() {
           )}
         </div>
       </div>
+
+      <div className="mb-8 border-b border-gray-200">
+        <div className="flex gap-1">
+          <button
+            onClick={() => setActiveTab('info')}
+            className={cn(
+              'px-6 py-3 font-medium text-sm transition-all relative',
+              activeTab === 'info'
+                ? 'text-primary-600'
+                : 'text-gray-500 hover:text-gray-700'
+            )}
+          >
+            <span className="flex items-center gap-1.5">
+              <FileText className="w-4 h-4" />
+              基础信息
+            </span>
+            {activeTab === 'info' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500 rounded-t" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('health')}
+            className={cn(
+              'px-6 py-3 font-medium text-sm transition-all relative',
+              activeTab === 'health'
+                ? 'text-primary-600'
+                : 'text-gray-500 hover:text-gray-700'
+            )}
+          >
+            <span className="flex items-center gap-1.5">
+              <Stethoscope className="w-4 h-4" />
+              健康档案
+              {pet.isAdopted && (
+                <span className="ml-1 text-xs bg-mint-100 text-mint-700 px-2 py-0.5 rounded-full">
+                  已转移
+                </span>
+              )}
+            </span>
+            {activeTab === 'health' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500 rounded-t" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'health' && (
+        <div className="bg-white rounded-3xl shadow-card p-6 sm:p-8 mb-12 animate-fade-in">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-display text-2xl text-gray-800 flex items-center gap-2">
+              <Stethoscope className="w-6 h-6 text-primary-500" />
+              健康档案时间线
+            </h3>
+          </div>
+
+          {!healthProfile || timelineEvents.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">📋</div>
+              <h4 className="font-display text-lg text-gray-700 mb-2">暂无健康记录</h4>
+              <p className="text-sm text-gray-500">这只宠物还没有健康档案记录</p>
+            </div>
+          ) : (
+            <div className="relative">
+              <div className="absolute left-5 top-2 bottom-2 w-0.5 bg-gray-200" />
+              <div className="space-y-6">
+                {timelineEvents.map((event, idx) => (
+                  <div key={idx} className="relative pl-14">
+                    <div className={cn(
+                      'absolute left-0 w-10 h-10 rounded-full flex items-center justify-center shadow-md',
+                      event.type === 'vaccine' && 'bg-sky-100',
+                      event.type === 'deworming' && 'bg-emerald-100',
+                      event.type === 'checkup' && 'bg-violet-100'
+                    )}>
+                      {event.type === 'vaccine' && <Syringe className="w-5 h-5 text-sky-600" />}
+                      {event.type === 'deworming' && <Bug className="w-5 h-5 text-emerald-600" />}
+                      {event.type === 'checkup' && <Plus className="w-5 h-5 text-violet-600" />}
+                    </div>
+                    <div className="bg-cream-50 rounded-2xl p-4">
+                      <div className="flex items-start justify-between gap-4 mb-2">
+                        <h4 className="font-medium text-gray-800">{event.title}</h4>
+                        <span className="text-xs text-gray-500 whitespace-nowrap">{formatDate(event.date)}</span>
+                      </div>
+                      {event.description && (
+                        <p className="text-sm text-gray-600 mb-2">{event.description}</p>
+                      )}
+                      {event.nextDate && (
+                        <div className="text-xs text-sky-600 bg-sky-50 px-3 py-1.5 rounded-full inline-flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          下次接种：{formatDate(event.nextDate)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {!pet.isAdopted && showForm && (
         <div className="bg-white rounded-3xl shadow-card p-6 sm:p-8 mb-12 animate-fade-in border border-primary-50">

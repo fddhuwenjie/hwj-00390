@@ -49,6 +49,12 @@ export default function Layout() {
               <NavLink to="/" className={navLinkClass} end>
                 首页
               </NavLink>
+              <NavLink to="/community" className={navLinkClass}>
+                社区广场
+              </NavLink>
+              <NavLink to="/lost" className={navLinkClass}>
+                走失寻回
+              </NavLink>
               <NavLink to="/stories" className={navLinkClass}>
                 故事
               </NavLink>
@@ -96,18 +102,24 @@ export default function Layout() {
             <NavLink to="/" className={navLinkClass} end>
               首页
             </NavLink>
+            <NavLink to="/community" className={navLinkClass}>
+              社区
+            </NavLink>
+            <NavLink to="/lost" className={navLinkClass}>
+              走失
+            </NavLink>
             <NavLink to="/stories" className={navLinkClass}>
               故事
             </NavLink>
             <NavLink to="/publish" className={navLinkClass}>
-              发布宠物
+              发布
             </NavLink>
             <NavLink to="/profile" className={navLinkClass}>
-              个人中心
+              中心
             </NavLink>
             {currentUser?.role === 'admin' && (
               <NavLink to="/admin" className={navLinkClass}>
-                管理后台
+                管理
               </NavLink>
             )}
           </nav>

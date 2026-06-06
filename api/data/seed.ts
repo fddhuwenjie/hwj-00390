@@ -13,6 +13,8 @@ import type {
   PersonalityTag,
   ApplicationStatus,
   UserRole,
+  PostTag,
+  HealthStatus,
 } from '../../shared/types.js';
 import { ALL_PERSONALITY_TAGS } from '../../shared/types.js';
 
@@ -444,6 +446,138 @@ export function seed(): void {
 
   const history = createHistory(users, pets);
   history.forEach(h => store.history.create(h));
+
+  const firstPet = pets[0];
+  if (firstPet) {
+    store.addVaccineRecord({
+      petId: firstPet.id,
+      vaccineName: '猫三联疫苗',
+      date: randomDateWithinMonths(3),
+      nextDate: (() => {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() + 1);
+        return d.toISOString();
+      })(),
+    });
+    store.addVaccineRecord({
+      petId: firstPet.id,
+      vaccineName: '狂犬疫苗',
+      date: randomDateWithinMonths(2),
+      nextDate: (() => {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() + 1);
+        return d.toISOString();
+      })(),
+    });
+    store.addDewormingRecord({
+      petId: firstPet.id,
+      dewormingType: '体内驱虫',
+      date: randomDateWithinMonths(1),
+    });
+    store.addHealthCheckup({
+      petId: firstPet.id,
+      title: '年度体检',
+      description: '血常规正常，体温38.5度，心肺功能良好，体重略有上升建议控制饮食。',
+      date: randomDateWithinMonths(2),
+      photoUrls: [],
+    });
+  }
+
+  const secondPet = pets[1];
+  if (secondPet) {
+    store.addVaccineRecord({
+      petId: secondPet.id,
+      vaccineName: '六联疫苗',
+      date: randomDateWithinMonths(4),
+      nextDate: (() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() + 8);
+        return d.toISOString();
+      })(),
+    });
+    store.addDewormingRecord({
+      petId: secondPet.id,
+      dewormingType: '体外驱虫',
+      date: randomDateWithinMonths(1),
+    });
+    store.addHealthCheckup({
+      petId: secondPet.id,
+      title: '疫苗接种前检查',
+      description: '身体状况良好，无发烧，可以正常接种疫苗。',
+      date: randomDateWithinMonths(4),
+      photoUrls: [],
+    });
+  }
+
+  const lostPetPhotos = [
+    'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=600',
+    'https://images.unsplash.com/photo-1543852786-1cf6624b9987?w=600',
+    'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=600',
+  ];
+
+  store.registerLostPet({
+    petName: '豆豆',
+    species: 'dog',
+    breed: '柴犬',
+    photoUrls: [lostPetPhotos[0]],
+    features: '黄色短毛，左耳有缺口，脖子上有红色项圈，性格胆小怕人',
+    location: '北京市朝阳区望京SOHO附近',
+    lostTime: randomDateWithinMonths(1),
+    contact: '13800138001',
+    reporterId: 'user-user-001',
+    reporterName: '小明同学',
+  });
+
+  store.registerLostPet({
+    petName: '咪咪',
+    species: 'cat',
+    breed: '英短蓝白',
+    photoUrls: [lostPetPhotos[1]],
+    features: '蓝白花色，鼻头有个小黑点，尾巴末端是白色的',
+    location: '上海市浦东新区陆家嘴环路',
+    lostTime: randomDateWithinMonths(1),
+    contact: '13800138002',
+    reporterId: 'user-user-002',
+    reporterName: '爱猫的花花',
+  });
+
+  const communityUsers = users.filter(u => u.role !== 'admin');
+  const allTags: PostTag[] = ['日常', '求助', '科普', '晒宠', '讨论'];
+  const postTitles = [
+    '我家猫咪今天居然学会了握手！',
+    '新手养猫需要准备什么？求指点',
+    '你知道吗？狗狗不能吃巧克力！',
+    '晒晒我家柯基的屁屁',
+    '大家平时都用什么牌子的猫粮？',
+    '我家狗子最近不爱吃饭怎么办？',
+    '关于宠物绝育的一些科普知识',
+    '带狗狗去海边玩要注意什么？',
+  ];
+  const postContents = [
+    '今天回家发现我家小猫咪居然会握手了！训练了一个月终于有成效了，太感动了！现在它听到指令会主动伸爪子，虽然有时候会伸错，但已经很棒了！',
+    '刚领养了一只2个月大的小奶猫，完全不知道要准备什么，除了猫砂盆、猫粮、猫窝，还有什么必须要买的吗？求有经验的铲屎官指点一下！',
+    '很多新手铲屎官可能不知道，狗狗是绝对不能吃巧克力的！巧克力中含有的可可碱对狗狗来说是有毒的，严重的可能会危及生命。一定要收好家里的巧克力！',
+    '我家柯基的屁屁真的太可爱了！每天回家第一件事就是rua它的屁屁，它还会摇尾巴表示舒服，太治愈了~',
+    '最近想给我家猫换个猫粮，之前吃的是皇家，想换个性价比更高的。大家平时都用什么牌子？求推荐！',
+  ];
+
+  for (let i = 0; i < 6; i++) {
+    const author = communityUsers[i % communityUsers.length];
+    const tags = randomSubset<PostTag>(allTags, 1, 2);
+    const post = store.createCommunityPost({
+      authorId: author.id,
+      authorName: author.name,
+      authorAvatar: author.avatar,
+      title: postTitles[i % postTitles.length],
+      content: postContents[i % postContents.length],
+      images: i % 2 === 0 ? [lostPetPhotos[i % lostPetPhotos.length]] : [],
+      tags,
+    });
+    if (i < 3) {
+      const liker = communityUsers[(i + 1) % communityUsers.length];
+      store.likeCommunityPost(post.id, liker.id);
+    }
+  }
 
   console.log(`[Seed] 数据初始化完成:
   - 用户: ${store.users.list().length}

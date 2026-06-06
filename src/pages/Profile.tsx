@@ -19,6 +19,10 @@ import {
   ThumbsUp,
   Calendar,
   User as UserIcon,
+  AlertCircle,
+  Upload,
+  Send,
+  History,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
@@ -28,11 +32,16 @@ import type {
   Story,
   HistoryRecord,
   Favorite,
+  FollowUpStatus,
+  HealthStatus,
 } from '../../shared/types';
 import {
   SPECIES_LABELS,
   SPECIES_EMOJI,
   STATUS_LABELS,
+  FOLLOWUP_STATUS_LABELS,
+  HEALTH_STATUS_LABELS,
+  ALL_HEALTH_STATUS,
 } from '../../shared/types';
 
 const MENU_ITEMS = [
@@ -40,6 +49,7 @@ const MENU_ITEMS = [
   { path: '/profile/history', label: '浏览历史', icon: Clock, emoji: '👀' },
   { path: '/profile/mypets', label: '我的发布', icon: FileText, emoji: '📝' },
   { path: '/profile/applications', label: '我的申请', icon: ClipboardList, emoji: '📋' },
+  { path: '/profile/followups', label: '回访任务', icon: History, emoji: '📅' },
   { path: '/profile/stories', label: '我的故事', icon: BookOpen, emoji: '📖' },
 ];
 
@@ -843,6 +853,249 @@ function StoriesView() {
   );
 }
 
+function FollowUpsView() {
+  const navigate = useNavigate();
+  const {
+    currentUser, followUpTasks, fetchMyFollowUpTasks, submitFollowUpReport,
+  } = useAppStore();
+  const [loading, setLoading] = useState(true);
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const [reportForm, setReportForm] = useState<{
+    description: string;
+    healthStatus: HealthStatus;
+    photoUrls: string;
+  }>({ description: '', healthStatus: 'good', photoUrls: '' });
+
+  useEffect(() => {
+    const load = async () => {
+      if (!currentUser) return;
+      setLoading(true);
+      await fetchMyFollowUpTasks();
+      setLoading(false);
+    };
+    load();
+  }, [currentUser, fetchMyFollowUpTasks]);
+
+  if (!currentUser) {
+    return <EmptyState message="请先登录查看回访任务" emoji="🔒" />;
+  }
+
+  if (loading) {
+    return <EmptyState message="加载中..." emoji="⏳" />;
+  }
+
+  const sortedTasks = [...followUpTasks].sort((a, b) => {
+    const order = { overdue: 0, pending: 1, submitted: 2 } as Record<FollowUpStatus, number>;
+    return order[a.status] - order[b.status] || new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+  });
+
+  if (sortedTasks.length === 0) {
+    return <EmptyState message="暂无回访任务" emoji="📅" />;
+  }
+
+  const formatDate = (s: string) => {
+    const d = new Date(s);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const handleSubmitReport = async (taskId: string) => {
+    if (!reportForm.description.trim()) return;
+    setSubmittingId(taskId);
+    await submitFollowUpReport(taskId, {
+      description: reportForm.description.trim(),
+      healthStatus: reportForm.healthStatus,
+      photoUrls: reportForm.photoUrls ? reportForm.photoUrls.split(',').map(s => s.trim()).filter(Boolean) : [],
+    });
+    setReportForm({ description: '', healthStatus: 'good', photoUrls: '' });
+    setSubmittingId(null);
+    await fetchMyFollowUpTasks();
+  };
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold text-gray-800 mb-4">回访任务 ({sortedTasks.length})</h2>
+      <div className="space-y-4">
+        {sortedTasks.map(task => {
+          const isOverdue = task.status === 'overdue';
+          const isSubmitted = task.status === 'submitted';
+          const isPending = task.status === 'pending';
+          const isExpanded = submittingId === task.id;
+          return (
+            <div
+              key={task.id}
+              className={cn(
+                'bg-white rounded-3xl shadow-card overflow-hidden',
+                isOverdue && 'ring-2 ring-rose-300'
+              )}
+            >
+              <div className="p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-14 h-14 rounded-2xl overflow-hidden bg-cream-100 flex-shrink-0">
+                      {task.petPhoto ? (
+                        <img src={task.petPhoto} alt={task.petName} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-2xl">🐾</div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-gray-800 text-lg">{task.petName}</h3>
+                        <span
+                          className={cn(
+                            'text-xs px-2.5 py-1 rounded-full font-medium',
+                            isOverdue && 'bg-rose-100 text-rose-600',
+                            isPending && 'bg-amber-100 text-amber-700',
+                            isSubmitted && 'bg-mint-100 text-mint-600'
+                          )}
+                        >
+                          {isOverdue && <span className="flex items-center gap-0.5"><AlertCircle className="w-3 h-3" />{FOLLOWUP_STATUS_LABELS[task.status]}</span>}
+                          {!isOverdue && FOLLOWUP_STATUS_LABELS[task.status]}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">
+                        截止日期：
+                        <span className={cn(isOverdue ? 'text-rose-600 font-semibold' : '')}>
+                          {formatDate(task.dueDate)}
+                        </span>
+                      </p>
+                      <p className="text-sm text-gray-400 mt-0.5">
+                        领养日期：{formatDate(task.adoptionDate)}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/pet/${task.petId}`)}
+                    className="p-2 rounded-xl bg-cream-100 text-gray-600 hover:bg-cream-200 transition"
+                    title="查看宠物"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {isSubmitted && task.report && (
+                  <div className="mt-4 bg-mint-50 rounded-2xl p-4 border border-mint-100">
+                    <div className="text-sm text-gray-500 mb-2 flex items-center gap-1">
+                      <Check className="w-4 h-4 text-mint-500" />
+                      已提交回访报告
+                      {task.report.submittedAt && (
+                        <span className="ml-2">· {formatDate(task.report.submittedAt)}</span>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-700 mb-2">
+                      <span className="text-gray-500">健康状态：</span>
+                      {HEALTH_STATUS_LABELS[task.report.healthStatus]}
+                    </div>
+                    <div className="text-sm text-gray-700">
+                      <span className="text-gray-500">情况描述：</span>
+                      {task.report.description}
+                    </div>
+                    {task.report.photoUrls && task.report.photoUrls.length > 0 && (
+                      <div className="mt-3 flex gap-2">
+                        {task.report.photoUrls.slice(0, 3).map((url, i) => (
+                          <img key={i} src={url} alt="" className="w-20 h-20 object-cover rounded-xl" />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {(isPending || isOverdue) && (
+                  <div className="mt-4">
+                    {!isExpanded ? (
+                      <button
+                        onClick={() => {
+                          setSubmittingId(task.id);
+                          setReportForm({ description: '', healthStatus: 'good', photoUrls: '' });
+                        }}
+                        className="w-full py-2.5 bg-gradient-to-r from-primary-400 to-primary-500 text-white font-medium rounded-2xl shadow-soft hover:shadow-md transition"
+                      >
+                        提交回访报告
+                      </button>
+                    ) : (
+                      <div className="space-y-3 bg-cream-50 rounded-2xl p-4 border border-cream-100">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">宠物近况描述 <span className="text-primary-500">*</span></label>
+                          <textarea
+                            rows={3}
+                            value={reportForm.description}
+                            onChange={(e) => setReportForm({ ...reportForm, description: e.target.value })}
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none transition text-sm resize-none"
+                            placeholder="描述一下宠物最近的生活状态、饮食、精神等情况..."
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">健康状态</label>
+                          <div className="flex flex-wrap gap-2">
+                            {ALL_HEALTH_STATUS.map((status) => (
+                              <label
+                                key={status}
+                                className={cn(
+                                  'flex items-center gap-1 px-3 py-1.5 rounded-full border-2 cursor-pointer transition text-sm',
+                                  reportForm.healthStatus === status
+                                    ? 'border-primary-400 bg-primary-50 text-primary-600'
+                                    : 'border-gray-200 bg-white text-gray-600 hover:border-primary-200'
+                                )}
+                              >
+                                <input
+                                  type="radio"
+                                  name={`health-${task.id}`}
+                                  value={status}
+                                  checked={reportForm.healthStatus === status}
+                                  onChange={(e) => setReportForm({ ...reportForm, healthStatus: e.target.value as HealthStatus })}
+                                  className="sr-only"
+                                />
+                                {HEALTH_STATUS_LABELS[status]}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">照片URL（逗号分隔）</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={reportForm.photoUrls}
+                              onChange={(e) => setReportForm({ ...reportForm, photoUrls: e.target.value })}
+                              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none transition text-sm"
+                              placeholder="https://..."
+                            />
+                            <button type="button" className="flex items-center gap-1 px-4 py-2.5 bg-white text-gray-600 rounded-xl border border-gray-200 hover:bg-gray-50 transition text-sm">
+                              <Upload className="w-4 h-4" />
+                              上传
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex gap-3 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setSubmittingId(null)}
+                            className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition text-sm"
+                          >
+                            取消
+                          </button>
+                          <button
+                            onClick={() => handleSubmitReport(task.id)}
+                            disabled={!reportForm.description.trim()}
+                            className="flex-1 px-4 py-2.5 bg-gradient-to-r from-primary-400 to-primary-500 text-white rounded-xl font-medium shadow-soft hover:shadow-md transition text-sm flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Send className="w-4 h-4" />
+                            提交
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function ContentArea() {
   const location = useLocation();
   const path = location.pathname;
@@ -850,6 +1103,7 @@ function ContentArea() {
   if (path === '/profile/history') return <HistoryView />;
   if (path === '/profile/mypets') return <MyPetsView />;
   if (path === '/profile/applications') return <ApplicationsView />;
+  if (path === '/profile/followups') return <FollowUpsView />;
   if (path === '/profile/stories') return <StoriesView />;
   return <FavoritesView />;
 }

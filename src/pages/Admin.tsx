@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { SPECIES_LABELS } from '../../shared/types';
 import {
@@ -16,18 +16,25 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { Shield, PawPrint, Heart, ClipboardList, Target, Calendar } from 'lucide-react';
+import { Shield, PawPrint, Heart, ClipboardList, Target, Calendar, BarChart3, History, AlertCircle, Check, Eye } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { FOLLOWUP_STATUS_LABELS, HEALTH_STATUS_LABELS } from '../../shared/types';
+import type { FollowUpStatus } from '../../shared/types';
 
 const WARM_COLORS = ['#FF8A65', '#FFB18F', '#FFD0B9', '#FFE8DC', '#FFC107'];
 
+type AdminTab = 'overview' | 'followups';
+
 export default function Admin() {
-  const { currentUser, adminStats, loading, fetchAdminStats } = useAppStore();
+  const { currentUser, adminStats, followUpTasks, loading, fetchAdminStats, fetchAllFollowUpTasks } = useAppStore();
+  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
 
   useEffect(() => {
     if (currentUser?.role === 'admin') {
       fetchAdminStats();
+      fetchAllFollowUpTasks();
     }
-  }, [currentUser, fetchAdminStats]);
+  }, [currentUser, fetchAdminStats, fetchAllFollowUpTasks]);
 
   if (currentUser?.role !== 'admin') {
     return (
@@ -45,59 +52,56 @@ export default function Admin() {
     );
   }
 
-  if (loading || !adminStats) {
-    return (
-      <div className="animate-fade-in space-y-6">
-        <div className="h-10 bg-cream-200 rounded-2xl w-48 animate-pulse-soft" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-3xl shadow-card p-6 h-32 animate-pulse-soft" />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-3xl shadow-card p-6 h-80 animate-pulse-soft" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   const stats = [
     {
       label: '总宠物数',
-      value: adminStats.totalPets,
+      value: adminStats?.totalPets ?? 0,
       icon: '🐾',
       gradient: 'from-orange-400 to-orange-500',
       borderColor: 'bg-gradient-to-r from-orange-400 to-orange-500',
     },
     {
       label: '已被领养',
-      value: adminStats.adoptedPets,
+      value: adminStats?.adoptedPets ?? 0,
       icon: '💚',
       gradient: 'from-green-400 to-emerald-500',
       borderColor: 'bg-gradient-to-r from-green-400 to-emerald-500',
     },
     {
       label: '待审申请',
-      value: adminStats.pendingApplications,
+      value: adminStats?.pendingApplications ?? 0,
       icon: '📋',
       gradient: 'from-blue-400 to-sky-500',
       borderColor: 'bg-gradient-to-r from-blue-400 to-sky-500',
     },
     {
       label: '领养成功率',
-      value: `${Math.round(adminStats.adoptionSuccessRate * 100)}%`,
+      value: `${Math.round((adminStats?.adoptionSuccessRate ?? 0) * 100)}%`,
       icon: '🎯',
       gradient: 'from-purple-400 to-violet-500',
       borderColor: 'bg-gradient-to-r from-purple-400 to-violet-500',
     },
   ];
 
-  const pieData = adminStats.speciesDistribution.map((item) => ({
+  const pieData = (adminStats?.speciesDistribution ?? []).map((item) => ({
     name: SPECIES_LABELS[item.species] || item.species,
     value: item.count,
   }));
+
+  const formatDate = (s: string) => {
+    const d = new Date(s);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const sortedFollowUps = [...followUpTasks].sort((a, b) => {
+    const order = { overdue: 0, pending: 1, submitted: 2 } as Record<FollowUpStatus, number>;
+    return order[a.status] - order[b.status] || new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+  });
+
+  const tabs = [
+    { k: 'overview' as const, label: '数据概览', icon: <BarChart3 className="w-4 h-4" /> },
+    { k: 'followups' as const, label: '回访管理', icon: <History className="w-4 h-4" /> },
+  ];
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -106,158 +110,321 @@ export default function Admin() {
         <p className="text-gray-500">平台数据概览与运营分析</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="bg-white rounded-3xl shadow-card overflow-hidden hover:shadow-lg transition-shadow duration-300"
+      <div className="bg-white rounded-2xl shadow-soft p-1.5 inline-flex">
+        {tabs.map(({ k, label, icon }) => (
+          <button
+            key={k}
+            onClick={() => setActiveTab(k)}
+            className={cn(
+              'flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition',
+              activeTab === k
+                ? 'bg-primary-500 text-white shadow-soft'
+                : 'text-gray-600 hover:bg-cream-100'
+            )}
           >
-            <div className={`h-1.5 ${stat.borderColor}`} />
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-gray-500 font-medium">{stat.label}</span>
-                <span className="text-2xl">{stat.icon}</span>
-              </div>
-              <p className="font-display text-4xl text-gray-800">{stat.value}</p>
-            </div>
-          </div>
+            {icon}
+            {label}
+          </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="bg-white rounded-3xl shadow-card p-6">
-          <h2 className="font-display text-xl text-gray-800 mb-5 flex items-center gap-2">
-            <PawPrint className="w-5 h-5 text-primary-500" />
-            物种分布
-          </h2>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={90}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {pieData.map((_entry, index) => (
-                    <Cell key={`cell-${index}`} fill={WARM_COLORS[index % WARM_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: '16px',
-                    border: 'none',
-                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.06)',
-                  }}
-                />
-                <Legend iconType="circle" />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-3xl shadow-card p-6">
-          <h2 className="font-display text-xl text-gray-800 mb-5 flex items-center gap-2">
-            <Heart className="w-5 h-5 text-primary-500" />
-            领养趋势（最近6个月）
-          </h2>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={adminStats.monthlyTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#FFEFDD" />
-                <XAxis dataKey="month" stroke="#9CA3AF" tick={{ fontSize: 12 }} />
-                <YAxis stroke="#9CA3AF" tick={{ fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: '16px',
-                    border: 'none',
-                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.06)',
-                  }}
-                />
-                <Legend iconType="circle" />
-                <Line
-                  type="monotone"
-                  dataKey="newPets"
-                  name="新增宠物"
-                  stroke="#FF8A65"
-                  strokeWidth={3}
-                  dot={{ r: 5, fill: '#FF8A65', strokeWidth: 0 }}
-                  activeDot={{ r: 7 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="adoptedPets"
-                  name="被领养"
-                  stroke="#66BB6A"
-                  strokeWidth={3}
-                  dot={{ r: 5, fill: '#66BB6A', strokeWidth: 0 }}
-                  activeDot={{ r: 7 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-3xl shadow-card p-6">
-          <h2 className="font-display text-xl text-gray-800 mb-5 flex items-center gap-2">
-            <ClipboardList className="w-5 h-5 text-primary-500" />
-            热门品种 TOP 10
-          </h2>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={adminStats.topBreeds} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#FFEFDD" />
-                <XAxis type="number" stroke="#9CA3AF" tick={{ fontSize: 12 }} />
-                <YAxis
-                  type="category"
-                  dataKey="breed"
-                  stroke="#9CA3AF"
-                  tick={{ fontSize: 12 }}
-                  width={80}
-                />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: '16px',
-                    border: 'none',
-                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.06)',
-                  }}
-                />
-                <Bar
-                  dataKey="count"
-                  name="数量"
-                  fill="#FF8A65"
-                  radius={[0, 10, 10, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-3xl shadow-card p-6 flex flex-col justify-center items-center">
-          <h2 className="font-display text-xl text-gray-800 mb-6 flex items-center gap-2 self-start">
-            <Calendar className="w-5 h-5 text-primary-500" />
-            平均领养等待天数
-          </h2>
-          <div className="flex flex-col items-center justify-center flex-1 py-6">
-            <div className="relative">
-              <div className="w-40 h-40 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
-                <div className="w-32 h-32 rounded-full bg-white flex items-center justify-center shadow-inner">
-                  <span className="font-display text-5xl text-primary-600">
-                    {adminStats.avgWaitDays}
-                  </span>
-                </div>
+      {activeTab === 'overview' && (
+        <div className="animate-fade-in space-y-6">
+          {(loading || !adminStats) ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="bg-white rounded-3xl shadow-card p-6 h-32 animate-pulse-soft" />
+                ))}
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="bg-white rounded-3xl shadow-card p-6 h-80 animate-pulse-soft" />
+                ))}
               </div>
             </div>
-            <p className="text-gray-600 mt-6 font-medium">天</p>
-            <p className="text-sm text-gray-400 mt-2 text-center max-w-xs leading-relaxed">
-              从宠物上线到成功被领养的平均等待时长
-            </p>
-          </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                {stats.map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="bg-white rounded-3xl shadow-card overflow-hidden hover:shadow-lg transition-shadow duration-300"
+                  >
+                    <div className={`h-1.5 ${stat.borderColor}`} />
+                    <div className="p-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm text-gray-500 font-medium">{stat.label}</span>
+                        <span className="text-2xl">{stat.icon}</span>
+                      </div>
+                      <p className="font-display text-4xl text-gray-800">{stat.value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div className="bg-white rounded-3xl shadow-card p-6">
+                  <h2 className="font-display text-xl text-gray-800 mb-5 flex items-center gap-2">
+                    <PawPrint className="w-5 h-5 text-primary-500" />
+                    物种分布
+                  </h2>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={90}
+                          paddingAngle={3}
+                          dataKey="value"
+                        >
+                          {pieData.map((_entry, index) => (
+                            <Cell key={`cell-${index}`} fill={WARM_COLORS[index % WARM_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            borderRadius: '16px',
+                            border: 'none',
+                            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.06)',
+                          }}
+                        />
+                        <Legend iconType="circle" />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-3xl shadow-card p-6">
+                  <h2 className="font-display text-xl text-gray-800 mb-5 flex items-center gap-2">
+                    <Heart className="w-5 h-5 text-primary-500" />
+                    领养趋势（最近6个月）
+                  </h2>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={adminStats.monthlyTrend}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#FFEFDD" />
+                        <XAxis dataKey="month" stroke="#9CA3AF" tick={{ fontSize: 12 }} />
+                        <YAxis stroke="#9CA3AF" tick={{ fontSize: 12 }} />
+                        <Tooltip
+                          contentStyle={{
+                            borderRadius: '16px',
+                            border: 'none',
+                            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.06)',
+                          }}
+                        />
+                        <Legend iconType="circle" />
+                        <Line
+                          type="monotone"
+                          dataKey="newPets"
+                          name="新增宠物"
+                          stroke="#FF8A65"
+                          strokeWidth={3}
+                          dot={{ r: 5, fill: '#FF8A65', strokeWidth: 0 }}
+                          activeDot={{ r: 7 }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="adoptedPets"
+                          name="被领养"
+                          stroke="#66BB6A"
+                          strokeWidth={3}
+                          dot={{ r: 5, fill: '#66BB6A', strokeWidth: 0 }}
+                          activeDot={{ r: 7 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-3xl shadow-card p-6">
+                  <h2 className="font-display text-xl text-gray-800 mb-5 flex items-center gap-2">
+                    <ClipboardList className="w-5 h-5 text-primary-500" />
+                    热门品种 TOP 10
+                  </h2>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={adminStats.topBreeds} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke="#FFEFDD" />
+                        <XAxis type="number" stroke="#9CA3AF" tick={{ fontSize: 12 }} />
+                        <YAxis
+                          type="category"
+                          dataKey="breed"
+                          stroke="#9CA3AF"
+                          tick={{ fontSize: 12 }}
+                          width={80}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            borderRadius: '16px',
+                            border: 'none',
+                            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.06)',
+                          }}
+                        />
+                        <Bar
+                          dataKey="count"
+                          name="数量"
+                          fill="#FF8A65"
+                          radius={[0, 10, 10, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-3xl shadow-card p-6 flex flex-col justify-center items-center">
+                  <h2 className="font-display text-xl text-gray-800 mb-6 flex items-center gap-2 self-start">
+                    <Calendar className="w-5 h-5 text-primary-500" />
+                    平均领养等待天数
+                  </h2>
+                  <div className="flex flex-col items-center justify-center flex-1 py-6">
+                    <div className="relative">
+                      <div className="w-40 h-40 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
+                        <div className="w-32 h-32 rounded-full bg-white flex items-center justify-center shadow-inner">
+                          <span className="font-display text-5xl text-primary-600">
+                            {adminStats.avgWaitDays}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-gray-600 mt-6 font-medium">天</p>
+                    <p className="text-sm text-gray-400 mt-2 text-center max-w-xs leading-relaxed">
+                      从宠物上线到成功被领养的平均等待时长
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
-      </div>
+      )}
+
+      {activeTab === 'followups' && (
+        <div className="animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-card p-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+              <div className="p-3 bg-cream-50 rounded-xl">
+                <div className="font-display text-2xl text-gray-800">{sortedFollowUps.length}</div>
+                <div className="text-xs text-gray-500">全部</div>
+              </div>
+              <div className="p-3 bg-amber-50 rounded-xl">
+                <div className="font-display text-2xl text-amber-600">
+                  {sortedFollowUps.filter(t => t.status === 'pending').length}
+                </div>
+                <div className="text-xs text-gray-500">待回访</div>
+              </div>
+              <div className="p-3 bg-rose-50 rounded-xl">
+                <div className="font-display text-2xl text-rose-600">
+                  {sortedFollowUps.filter(t => t.status === 'overdue').length}
+                </div>
+                <div className="text-xs text-gray-500">已逾期</div>
+              </div>
+              <div className="p-3 bg-mint-50 rounded-xl">
+                <div className="font-display text-2xl text-mint-600">
+                  {sortedFollowUps.filter(t => t.status === 'submitted').length}
+                </div>
+                <div className="text-xs text-gray-500">已完成</div>
+              </div>
+            </div>
+          </div>
+
+          {sortedFollowUps.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="text-6xl mb-4">📅</div>
+              <h3 className="font-display text-2xl text-gray-700 mb-2">暂无回访任务</h3>
+              <p className="text-gray-500">目前还没有回访任务</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {sortedFollowUps.map(task => {
+                const isOverdue = task.status === 'overdue';
+                const isSubmitted = task.status === 'submitted';
+                const isPending = task.status === 'pending';
+                return (
+                  <div
+                    key={task.id}
+                    className={cn(
+                      'bg-white rounded-2xl shadow-card overflow-hidden',
+                      isOverdue && 'ring-2 ring-rose-300'
+                    )}
+                  >
+                    <div className="p-4 flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-2xl overflow-hidden bg-cream-100 flex-shrink-0">
+                        {task.petPhoto ? (
+                          <img src={task.petPhoto} alt={task.petName} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-2xl">🐾</div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <h3 className="font-bold text-gray-800">{task.petName}</h3>
+                          <span
+                            className={cn(
+                              'text-xs px-2.5 py-1 rounded-full font-medium',
+                              isOverdue && 'bg-rose-100 text-rose-600',
+                              isPending && 'bg-amber-100 text-amber-700',
+                              isSubmitted && 'bg-mint-100 text-mint-600'
+                            )}
+                          >
+                            {isOverdue && (
+                              <span className="flex items-center gap-0.5">
+                                <AlertCircle className="w-3 h-3" />
+                              </span>
+                            )}
+                            {FOLLOWUP_STATUS_LABELS[task.status]}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600">
+                          领养人：{task.adopterName}
+                        </p>
+                        <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-3 flex-wrap">
+                          <span>截止：{formatDate(task.dueDate)}</span>
+                          <span>领养：{formatDate(task.adoptionDate)}</span>
+                          {task.report?.submittedAt && (
+                            <span>提交：{formatDate(task.report.submittedAt)}</span>
+                          )}
+                        </div>
+                        {task.report && (
+                          <div className="mt-2 bg-cream-50 rounded-xl p-3 text-sm">
+                            <div className="text-gray-700 mb-1">
+                              <span className="text-gray-500">健康：</span>
+                              {HEALTH_STATUS_LABELS[task.report.healthStatus]}
+                            </div>
+                            <div className="text-gray-700 line-clamp-2">
+                              <span className="text-gray-500">描述：</span>
+                              {task.report.description}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-2 flex-shrink-0">
+                        <button
+                          className="p-2 rounded-xl bg-cream-100 text-gray-600 hover:bg-cream-200 transition"
+                          title="查看宠物"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        {isSubmitted && (
+                          <button
+                            className="p-2 rounded-xl bg-mint-100 text-mint-600 hover:bg-mint-200 transition"
+                            title="已确认"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

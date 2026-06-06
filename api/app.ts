@@ -15,6 +15,11 @@ import historyRoutes from './routes/history.js'
 import storiesRoutes from './routes/stories.js'
 import adminRoutes from './routes/admin.js'
 import userRoutes from './routes/user.js'
+import matchingRoutes from './routes/matching.js'
+import healthRoutes from './routes/health.js'
+import followupRoutes from './routes/followup.js'
+import lostRoutes from './routes/lost.js'
+import communityRoutes from './routes/community.js'
 import { store } from './store.js'
 import { seed } from './data/seed.js'
 
@@ -39,9 +44,14 @@ app.use('/api/history', historyRoutes)
 app.use('/api/stories', storiesRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/user', userRoutes)
+app.use('/api/matching', matchingRoutes)
+app.use('/api/health', healthRoutes)
+app.use('/api/followup', followupRoutes)
+app.use('/api/lost', lostRoutes)
+app.use('/api/community', communityRoutes)
 
 app.use(
-  '/api/health',
+  '/api/status',
   (req: Request, res: Response, next: NextFunction): void => {
     res.status(200).json({
       success: true,

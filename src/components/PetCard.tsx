@@ -19,9 +19,17 @@ const TAG_COLORS = [
 
 interface PetCardProps {
   pet: Pet;
+  matchScore?: number;
 }
 
-export default function PetCard({ pet }: PetCardProps) {
+function getMatchScoreColor(score: number): string {
+  if (score >= 80) return 'from-emerald-400 to-emerald-500';
+  if (score >= 60) return 'from-sky-400 to-sky-500';
+  if (score >= 40) return 'from-amber-400 to-amber-500';
+  return 'from-gray-400 to-gray-500';
+}
+
+export default function PetCard({ pet, matchScore }: PetCardProps) {
   const navigate = useNavigate();
 
   const handleClick = () => {
@@ -48,6 +56,14 @@ export default function PetCard({ pet }: PetCardProps) {
         {pet.isAdopted && (
           <div className="absolute top-3 right-3 bg-primary-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-md">
             已领养
+          </div>
+        )}
+        {matchScore !== undefined && matchScore > 0 && (
+          <div className={cn(
+            'absolute top-3 left-3 bg-gradient-to-r text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md',
+            getMatchScoreColor(matchScore)
+          )}>
+            匹配度 {matchScore}%
           </div>
         )}
       </div>

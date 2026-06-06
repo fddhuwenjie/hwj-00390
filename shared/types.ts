@@ -3,7 +3,12 @@ export type Gender = 'male' | 'female';
 export type PersonalityTag = '亲人' | '独立' | '活泼' | '安静' | '粘人' | '高冷' | '聪明' | '贪吃' | '胆小' | '勇敢';
 export type ApplicationStatus = 'pending' | 'approved' | 'rejected';
 export type UserRole = 'user' | 'publisher' | 'admin';
-export type SortOrder = 'newest' | 'popular';
+export type SortOrder = 'newest' | 'popular' | 'hot';
+export type DogSize = 'small' | 'medium' | 'large' | 'unknown';
+export type FollowUpStatus = 'pending' | 'submitted' | 'overdue';
+export type HealthStatus = 'excellent' | 'good' | 'fair' | 'poor';
+export type LostPetStatus = 'lost' | 'found';
+export type PostTag = '日常' | '求助' | '科普' | '晒宠' | '讨论';
 
 export interface Pet {
   id: string;
@@ -150,3 +155,182 @@ export const STATUS_LABELS: Record<ApplicationStatus, string> = {
 export const ALL_PERSONALITY_TAGS: PersonalityTag[] = [
   '亲人', '独立', '活泼', '安静', '粘人', '高冷', '聪明', '贪吃', '胆小', '勇敢'
 ];
+
+export interface UserPreference {
+  id: string;
+  userId: string;
+  livingEnvironment: string;
+  hasPetExperience: boolean;
+  dailyCompanionTime: string;
+  familyMembers: string;
+  updatedAt: string;
+}
+
+export interface PetWithMatchScore extends Pet {
+  matchScore: number;
+}
+
+export interface VaccineRecord {
+  id: string;
+  petId: string;
+  vaccineName: string;
+  date: string;
+  nextDate?: string;
+  createdAt: string;
+}
+
+export interface DewormingRecord {
+  id: string;
+  petId: string;
+  dewormingType: string;
+  date: string;
+  createdAt: string;
+}
+
+export interface HealthCheckup {
+  id: string;
+  petId: string;
+  title: string;
+  description: string;
+  date: string;
+  photoUrls: string[];
+  createdAt: string;
+}
+
+export interface HealthProfile {
+  petId: string;
+  vaccines: VaccineRecord[];
+  dewormings: DewormingRecord[];
+  checkups: HealthCheckup[];
+}
+
+export interface FollowUpTask {
+  id: string;
+  applicationId: string;
+  petId: string;
+  petName: string;
+  petPhoto: string;
+  adopterId: string;
+  adopterName: string;
+  adoptionDate: string;
+  dueDate: string;
+  status: FollowUpStatus;
+  reportId?: string;
+  report?: FollowUpReport;
+  createdAt: string;
+}
+
+export interface FollowUpReport {
+  id: string;
+  taskId: string;
+  petId: string;
+  adopterId: string;
+  description: string;
+  photoUrls: string[];
+  healthStatus: HealthStatus;
+  submittedAt: string;
+}
+
+export interface LostPet {
+  id: string;
+  petName: string;
+  species: Species;
+  breed?: string;
+  photoUrls: string[];
+  features: string;
+  location: string;
+  latitude?: number;
+  longitude?: number;
+  lostTime: string;
+  contact: string;
+  reporterId: string;
+  reporterName: string;
+  status: LostPetStatus;
+  sightingCount: number;
+  createdAt: string;
+  foundAt?: string;
+}
+
+export interface LostPetSighting {
+  id: string;
+  lostPetId: string;
+  reporterId: string;
+  reporterName: string;
+  time: string;
+  location: string;
+  latitude?: number;
+  longitude?: number;
+  description: string;
+  photoUrls: string[];
+  createdAt: string;
+}
+
+export interface CommunityPost {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar: string;
+  title: string;
+  content: string;
+  images: string[];
+  tags: PostTag[];
+  likeCount: number;
+  commentCount: number;
+  likedBy: string[];
+  isLiked: boolean;
+  createdAt: string;
+}
+
+export interface PostComment {
+  id: string;
+  postId: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface UserFollow {
+  id: string;
+  followerId: string;
+  followingId: string;
+  createdAt: string;
+}
+
+export const DOG_SIZE_LABELS: Record<DogSize, string> = {
+  small: '小型犬',
+  medium: '中型犬',
+  large: '大型犬',
+  unknown: '未知',
+};
+
+export const FOLLOWUP_STATUS_LABELS: Record<FollowUpStatus, string> = {
+  pending: '待回访',
+  submitted: '已回访',
+  overdue: '已逾期',
+};
+
+export const HEALTH_STATUS_LABELS: Record<HealthStatus, string> = {
+  excellent: '非常好',
+  good: '良好',
+  fair: '一般',
+  poor: '较差',
+};
+
+export const ALL_HEALTH_STATUS: HealthStatus[] = ['excellent', 'good', 'fair', 'poor'];
+
+export const LOST_PET_STATUS_LABELS: Record<LostPetStatus, string> = {
+  lost: '走失中',
+  found: '已寻回',
+};
+
+export const ALL_POST_TAGS: PostTag[] = ['日常', '求助', '科普', '晒宠', '讨论'];
+
+export const POST_TAG_COLORS: Record<PostTag, string> = {
+  '日常': 'bg-sky-100 text-sky-600',
+  '求助': 'bg-rose-100 text-rose-600',
+  '科普': 'bg-violet-100 text-violet-600',
+  '晒宠': 'bg-amber-100 text-amber-700',
+  '讨论': 'bg-emerald-100 text-emerald-600',
+};
