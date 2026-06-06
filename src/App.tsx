@@ -12,6 +12,11 @@ import RegisterLostPet from '@/pages/RegisterLostPet';
 import LostPetDetail from '@/pages/LostPetDetail';
 import Community from '@/pages/Community';
 import PostDetail from '@/pages/PostDetail';
+import Boarding from '@/pages/Boarding';
+import PublishBoarding from '@/pages/PublishBoarding';
+import RegisterCaregiver from '@/pages/RegisterCaregiver';
+import BoardingMatch from '@/pages/BoardingMatch';
+import BoardingOrderDetail from '@/pages/BoardingOrderDetail';
 
 export default function App() {
   return (
@@ -35,6 +40,11 @@ export default function App() {
         <Route path="/lost/:id" element={<LostPetDetail />} />
         <Route path="/community" element={<Community />} />
         <Route path="/community/:id" element={<PostDetail />} />
+        <Route path="/boarding" element={<Boarding />} />
+        <Route path="/boarding/publish" element={<PublishBoarding />} />
+        <Route path="/boarding/caregiver/register" element={<RegisterCaregiver />} />
+        <Route path="/boarding/match/:id" element={<BoardingMatch />} />
+        <Route path="/boarding/orders/:id" element={<BoardingOrderDetail />} />
       </Route>
     </Routes>
   );

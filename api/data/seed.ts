@@ -15,6 +15,9 @@ import type {
   UserRole,
   PostTag,
   HealthStatus,
+  BoardingRequest,
+  BoardingMethod,
+  DiaryAlertType,
 } from '../../shared/types.js';
 import { ALL_PERSONALITY_TAGS } from '../../shared/types.js';
 
@@ -579,6 +582,311 @@ export function seed(): void {
     }
   }
 
+  function generateAvailableDates(daysAhead: number = 60): string[] {
+    const dates: string[] = [];
+    const today = new Date();
+    for (let i = 0; i < daysAhead; i++) {
+      if (Math.random() > 0.3) {
+        const d = new Date(today);
+        d.setDate(d.getDate() + i);
+        dates.push(d.toISOString().split('T')[0]);
+      }
+    }
+    return dates;
+  }
+
+  function dateStr(offsetDays: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
+    return d.toISOString().split('T')[0];
+  }
+
+  function isoDate(offsetDays: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
+    return d.toISOString();
+  }
+
+  const caregiverUsers: User[] = [
+    { id: 'user-care-001', name: '宠物保姆小李', avatar: '👩', role: 'user' as UserRole },
+    { id: 'user-care-002', name: '狗狗爱好者王哥', avatar: '👨', role: 'user' as UserRole },
+    { id: 'user-care-003', name: '猫咪之家张姐', avatar: '👩‍🦰', role: 'user' as UserRole },
+  ];
+  caregiverUsers.forEach(u => store.users.create(u));
+
+  const caregiverDataList = [
+    {
+      userId: 'user-care-001',
+      userName: '宠物保姆小李',
+      userAvatar: '👩',
+      livingArea: 120,
+      hasYard: true,
+      petExperienceYears: 8,
+      acceptedSpecies: ['cat', 'dog', 'rabbit'] as Species[],
+      maxPetsAtOnce: 4,
+      pricePerDay: 150,
+      serviceRadiusKm: 10,
+      availableDates: generateAvailableDates(),
+      bio: '从事宠物寄养5年，经验丰富，家里有独立院子，24小时陪伴，每日遛狗两次。',
+    },
+    {
+      userId: 'user-care-002',
+      userName: '狗狗爱好者王哥',
+      userAvatar: '👨',
+      livingArea: 95,
+      hasYard: false,
+      petExperienceYears: 5,
+      acceptedSpecies: ['dog'] as Species[],
+      maxPetsAtOnce: 3,
+      pricePerDay: 120,
+      serviceRadiusKm: 8,
+      availableDates: generateAvailableDates(),
+      bio: '资深狗主人，养过三只金毛，熟悉狗狗习性，每天会带狗狗去公园运动。',
+    },
+    {
+      userId: 'user-care-003',
+      userName: '猫咪之家张姐',
+      userAvatar: '👩‍🦰',
+      livingArea: 80,
+      hasYard: false,
+      petExperienceYears: 10,
+      acceptedSpecies: ['cat', 'rabbit', 'bird'] as Species[],
+      maxPetsAtOnce: 5,
+      pricePerDay: 100,
+      serviceRadiusKm: 5,
+      availableDates: generateAvailableDates(),
+      bio: '专业猫咪寄养，家中已养两只猫，对猫咪护理有丰富经验，会每日拍照汇报。',
+    },
+  ];
+
+  caregiverDataList.forEach(data => {
+    const cg = store.registerCaregiver(data);
+    store.reviewCaregiver(cg.id, true, '资质审核通过，具备专业养宠经验');
+  });
+
+  const ownerUsers = users.filter(u => u.role === 'user');
+  const adoptedPetsList = pets.filter(p => p.isAdopted).slice(0, 5);
+  if (adoptedPetsList.length < 5) {
+    pets.slice(0, 5 - adoptedPetsList.length).forEach(p => {
+      store.updatePet(p.id, { isAdopted: true, adoptedAt: randomDateWithinMonths(2) });
+      adoptedPetsList.push(p);
+    });
+  }
+
+  const boardingRequestData = [
+    {
+      pet: adoptedPetsList[0],
+      owner: ownerUsers[0],
+      startDate: dateStr(5),
+      endDate: dateStr(10),
+      budgetMin: 80,
+      budgetMax: 180,
+      methods: ['home_visit', 'foster_home'] as BoardingMethod[],
+      emergencyContact: '13800138101',
+      diet: '早晚各一次猫粮，每次约30克，温水泡软',
+      medication: '无需用药',
+      restrictions: '不能吃人类食物，不能喝牛奶',
+    },
+    {
+      pet: adoptedPetsList[1],
+      owner: ownerUsers[1] || ownerUsers[0],
+      startDate: dateStr(3),
+      endDate: dateStr(8),
+      budgetMin: 100,
+      budgetMax: 200,
+      methods: ['foster_home', 'pet_hotel'] as BoardingMethod[],
+      emergencyContact: '13800138102',
+      diet: '每日三餐狗粮，中午加一个蛋黄，饮水量充足',
+      medication: '关节保健品每日1粒',
+      restrictions: '避免剧烈运动，上下楼梯需抱着',
+    },
+    {
+      pet: adoptedPetsList[2] || adoptedPetsList[0],
+      owner: ownerUsers[0],
+      startDate: dateStr(10),
+      endDate: dateStr(17),
+      budgetMin: 60,
+      budgetMax: 150,
+      methods: ['home_visit'] as BoardingMethod[],
+      emergencyContact: '13800138103',
+      diet: '兔粮不限量，每日新鲜蔬菜（生菜/胡萝卜）',
+      medication: '无需用药',
+      restrictions: '不能洗澡，笼子需要每日清理',
+    },
+    {
+      pet: adoptedPetsList[3] || adoptedPetsList[1],
+      owner: ownerUsers[1] || ownerUsers[0],
+      startDate: dateStr(7),
+      endDate: dateStr(14),
+      budgetMin: 100,
+      budgetMax: 250,
+      methods: ['foster_home'] as BoardingMethod[],
+      emergencyContact: '13800138104',
+      diet: '大型犬狗粮，每日两次，每次200克',
+      medication: '无需用药',
+      restrictions: '需要大量运动，每日至少遛狗1小时',
+    },
+    {
+      pet: adoptedPetsList[4] || adoptedPetsList[2],
+      owner: ownerUsers[0],
+      startDate: dateStr(2),
+      endDate: dateStr(5),
+      budgetMin: 50,
+      budgetMax: 120,
+      methods: ['home_visit', 'foster_home'] as BoardingMethod[],
+      emergencyContact: '13800138105',
+      diet: '鸟粮每日添加一次，换水',
+      medication: '无需用药',
+      restrictions: '避免惊吓，保持环境安静',
+    },
+  ];
+
+  const createdRequests: BoardingRequest[] = [];
+  boardingRequestData.forEach(data => {
+    const req = store.createBoardingRequest({
+      ownerId: data.owner.id,
+      ownerName: data.owner.name,
+      ownerAvatar: data.owner.avatar,
+      petId: data.pet.id,
+      petName: data.pet.name,
+      petSpecies: data.pet.species,
+      petPhoto: data.pet.photoUrls[0],
+      startDate: data.startDate,
+      endDate: data.endDate,
+      specialCare: {
+        dietPreference: data.diet,
+        medication: data.medication,
+        restrictions: data.restrictions,
+      },
+      acceptedMethods: data.methods,
+      budgetMin: data.budgetMin,
+      budgetMax: data.budgetMax,
+      emergencyContact: data.emergencyContact,
+    });
+    createdRequests.push(req);
+  });
+
+  const approvedCaregivers = store.getAllCaregivers('approved');
+
+  const completedOrder1 = store.createBoardingOrder({
+    requestId: createdRequests[0].id,
+    ownerId: createdRequests[0].ownerId,
+    ownerName: createdRequests[0].ownerName,
+    caregiverId: approvedCaregivers[0].id,
+    caregiverName: approvedCaregivers[0].userName,
+    caregiverAvatar: approvedCaregivers[0].userAvatar,
+    petId: createdRequests[0].petId,
+    petName: createdRequests[0].petName,
+    petPhoto: createdRequests[0].petPhoto,
+    startDate: dateStr(-10),
+    endDate: dateStr(-5),
+    boardingMethod: 'foster_home',
+    pricePerDay: approvedCaregivers[0].pricePerDay,
+    handoverNotes: '猫咪比较胆小，刚到新家可能会躲起来，请给它空间。猫粮和猫砂已准备好。',
+  });
+  store.updateBoardingOrderStatus(completedOrder1.id, 'confirmed');
+  store.updateBoardingOrderStatus(completedOrder1.id, 'in_progress');
+  store.updateBoardingOrderStatus(completedOrder1.id, 'completed');
+
+  const diaryPhotos1 = [
+    'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=600',
+    'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600',
+  ];
+  for (let i = 10; i >= 5; i--) {
+    store.addBoardingDiary({
+      orderId: completedOrder1.id,
+      caregiverId: approvedCaregivers[0].id,
+      date: dateStr(-i),
+      description: i === 8
+        ? '今天猫咪有点打喷嚏，可能是温差导致的轻微感冒，已注意保暖。'
+        : `第${11 - i}天：猫咪状态良好，饮食正常，已经适应了新环境，开始主动玩耍了。`,
+      dietStatus: '饮食正常，早晚各吃了30克猫粮，饮水充足',
+      activityStatus: i === 8 ? '活动量稍减，大部分时间在休息' : '活泼好动，每天玩逗猫棒30分钟',
+      photoUrls: i % 2 === 0 ? diaryPhotos1 : [],
+      alertType: i === 8 ? 'abnormal_behavior' as DiaryAlertType : 'none' as DiaryAlertType,
+      alertDescription: i === 8 ? '轻微打喷嚏，已保暖观察' : undefined,
+    });
+  }
+
+  store.addBoardingReview({
+    orderId: completedOrder1.id,
+    reviewerId: createdRequests[0].ownerId,
+    reviewerName: createdRequests[0].ownerName,
+    reviewerAvatar: createdRequests[0].ownerAvatar,
+    targetUserId: approvedCaregivers[0].userId,
+    rating: 5,
+    content: '小李非常专业，每天都有详细的日记和照片，猫咪在她家生活得很好。中间有一天猫咪有点小状况也及时通知了我，非常负责！下次还会找她。',
+  });
+
+  store.addBoardingReview({
+    orderId: completedOrder1.id,
+    reviewerId: approvedCaregivers[0].userId,
+    reviewerName: approvedCaregivers[0].userName,
+    reviewerAvatar: approvedCaregivers[0].userAvatar,
+    targetUserId: createdRequests[0].ownerId,
+    rating: 5,
+    content: '主人非常配合，交接时详细说明了猫咪的习惯和注意事项，猫咪本身也很乖，寄养过程很愉快！',
+  });
+
+  const completedOrder2 = store.createBoardingOrder({
+    requestId: createdRequests[1].id,
+    ownerId: createdRequests[1].ownerId,
+    ownerName: createdRequests[1].ownerName,
+    caregiverId: approvedCaregivers[1].id,
+    caregiverName: approvedCaregivers[1].userName,
+    caregiverAvatar: approvedCaregivers[1].userAvatar,
+    petId: createdRequests[1].petId,
+    petName: createdRequests[1].petName,
+    petPhoto: createdRequests[1].petPhoto,
+    startDate: dateStr(-15),
+    endDate: dateStr(-10),
+    boardingMethod: 'home_visit',
+    pricePerDay: approvedCaregivers[1].pricePerDay,
+    handoverNotes: '狗狗关节不太好，记得给它吃保健品，遛狗不要太剧烈。',
+    extraFees: 50,
+    discount: 0,
+  });
+  store.updateBoardingOrderStatus(completedOrder2.id, 'confirmed');
+  store.updateBoardingOrderStatus(completedOrder2.id, 'in_progress');
+  store.updateBoardingOrderStatus(completedOrder2.id, 'completed');
+
+  const diaryPhotos2 = [
+    'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600',
+    'https://images.unsplash.com/photo-1552053831-71594a27632d?w=600',
+  ];
+  for (let i = 15; i >= 10; i--) {
+    store.addBoardingDiary({
+      orderId: completedOrder2.id,
+      caregiverId: approvedCaregivers[1].id,
+      date: dateStr(-i),
+      description: `第${16 - i}天：上门服务，狗狗精神状态很好，见到我特别兴奋。关节保健品已按时服用。`,
+      dietStatus: '早中晚三餐正常进食，中午加了蛋黄',
+      activityStatus: '小区散步40分钟，步伐稳健',
+      photoUrls: i % 3 === 0 ? diaryPhotos2 : [],
+      alertType: 'none' as DiaryAlertType,
+    });
+  }
+
+  store.addBoardingReview({
+    orderId: completedOrder2.id,
+    reviewerId: createdRequests[1].ownerId,
+    reviewerName: createdRequests[1].ownerName,
+    reviewerAvatar: createdRequests[1].ownerAvatar,
+    targetUserId: approvedCaregivers[1].userId,
+    rating: 4,
+    content: '王哥很有耐心，狗狗很喜欢他。每天准时上门，服务很到位。扣一星是因为有两天照片拍得有点少。整体非常满意！',
+  });
+
+  store.addBoardingReview({
+    orderId: completedOrder2.id,
+    reviewerId: approvedCaregivers[1].userId,
+    reviewerName: approvedCaregivers[1].userName,
+    reviewerAvatar: approvedCaregivers[1].userAvatar,
+    targetUserId: createdRequests[1].ownerId,
+    rating: 5,
+    content: '主人交接很清晰，狗狗训练有素特别听话，是一次很愉快的合作。',
+  });
+
   console.log(`[Seed] 数据初始化完成:
   - 用户: ${store.users.list().length}
   - 宠物: ${store.pets.list().length}
@@ -587,5 +895,10 @@ export function seed(): void {
   - 申请: ${store.applications.list().length}
   - 收藏: ${store.favorites.list().length}
   - 关注: ${store.follows.list().length}
-  - 历史: ${store.history.list().length}`);
+  - 历史: ${store.history.list().length}
+  - 寄养人: ${store.boardingCaregivers.list().length}
+  - 寄养需求: ${store.boardingRequests.list().length}
+  - 寄养订单: ${store.boardingOrders.list().length}
+  - 寄养日记: ${store.boardingDiaries.list().length}
+  - 寄养评价: ${store.boardingReviews.list().length}`);
 }

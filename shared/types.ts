@@ -334,3 +334,165 @@ export const POST_TAG_COLORS: Record<PostTag, string> = {
   '晒宠': 'bg-amber-100 text-amber-700',
   '讨论': 'bg-emerald-100 text-emerald-600',
 };
+
+export type CaregiverStatus = 'pending' | 'approved' | 'rejected';
+export type BoardingMethod = 'home_visit' | 'foster_home' | 'pet_hotel';
+export type BoardingOrderStatus = 'pending_confirm' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'disputed';
+export type DiaryAlertType = 'sick' | 'injured' | 'abnormal_behavior' | 'none';
+
+export const CAREGIVER_STATUS_LABELS: Record<CaregiverStatus, string> = {
+  pending: '待审核',
+  approved: '已通过',
+  rejected: '已拒绝',
+};
+
+export const BOARDING_METHOD_LABELS: Record<BoardingMethod, string> = {
+  home_visit: '上门照料',
+  foster_home: '送至寄养家庭',
+  pet_hotel: '宠物旅馆',
+};
+
+export const BOARDING_ORDER_STATUS_LABELS: Record<BoardingOrderStatus, string> = {
+  pending_confirm: '待确认',
+  confirmed: '已确认',
+  in_progress: '进行中',
+  completed: '已完成',
+  cancelled: '已取消',
+  disputed: '争议中',
+};
+
+export const DIARY_ALERT_LABELS: Record<DiaryAlertType, string> = {
+  sick: '生病',
+  injured: '受伤',
+  abnormal_behavior: '异常行为',
+  none: '正常',
+};
+
+export interface BoardingCaregiver {
+  id: string;
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  livingArea: number;
+  hasYard: boolean;
+  petExperienceYears: number;
+  acceptedSpecies: Species[];
+  maxPetsAtOnce: number;
+  pricePerDay: number;
+  serviceRadiusKm: number;
+  availableDates: string[];
+  bio?: string;
+  status: CaregiverStatus;
+  reviewNote?: string;
+  reviewedAt?: string;
+  createdAt: string;
+  totalOrders: number;
+  averageRating: number;
+}
+
+export interface BoardingCaregiverWithScore extends BoardingCaregiver {
+  matchScore: number;
+}
+
+export interface SpecialCare {
+  dietPreference: string;
+  medication: string;
+  restrictions: string;
+}
+
+export interface BoardingRequest {
+  id: string;
+  ownerId: string;
+  ownerName: string;
+  ownerAvatar: string;
+  petId: string;
+  petName: string;
+  petSpecies: Species;
+  petPhoto: string;
+  startDate: string;
+  endDate: string;
+  specialCare: SpecialCare;
+  acceptedMethods: BoardingMethod[];
+  budgetMin: number;
+  budgetMax: number;
+  emergencyContact: string;
+  status: 'open' | 'matched' | 'completed' | 'cancelled';
+  createdAt: string;
+  handoverNotes?: string;
+}
+
+export interface BoardingOrderCost {
+  baseFee: number;
+  extraFees: number;
+  discount: number;
+  totalAmount: number;
+  days: number;
+}
+
+export interface BoardingOrder {
+  id: string;
+  requestId: string;
+  ownerId: string;
+  ownerName: string;
+  caregiverId: string;
+  caregiverName: string;
+  caregiverAvatar: string;
+  petId: string;
+  petName: string;
+  petPhoto: string;
+  startDate: string;
+  endDate: string;
+  boardingMethod: BoardingMethod;
+  cost: BoardingOrderCost;
+  handoverNotes: string;
+  status: BoardingOrderStatus;
+  createdAt: string;
+  confirmedAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  cancelledAt?: string;
+  disputeReason?: string;
+}
+
+export interface BoardingDiary {
+  id: string;
+  orderId: string;
+  caregiverId: string;
+  date: string;
+  description: string;
+  dietStatus: string;
+  activityStatus: string;
+  photoUrls: string[];
+  alertType: DiaryAlertType;
+  alertDescription?: string;
+  createdAt: string;
+}
+
+export interface BoardingReview {
+  id: string;
+  orderId: string;
+  reviewerId: string;
+  reviewerName: string;
+  reviewerAvatar: string;
+  targetUserId: string;
+  rating: number;
+  content: string;
+  createdAt: string;
+}
+
+export interface BoardingStats {
+  monthlyOrders: { month: string; count: number; revenue: number }[];
+  speciesDistribution: { species: Species; count: number }[];
+  activeCaregivers: number;
+  totalRevenue: number;
+  totalOrders: number;
+  pendingCaregivers: number;
+  disputedOrders: number;
+}
+
+export interface CaregiverIncomeStats {
+  month: string;
+  orders: number;
+  income: number;
+  rating: number;
+}

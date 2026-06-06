@@ -6,6 +6,9 @@ const MOCK_USERS: User[] = [
   { id: 'user-user-001', name: '小明同学', avatar: '🧑', role: 'user' },
   { id: 'user-pub-001', name: '爱心救助站', avatar: '🏠', role: 'publisher' },
   { id: 'user-admin-001', name: '管理员小王', avatar: '👑', role: 'admin' },
+  { id: 'user-care-001', name: '宠物保姆小李', avatar: '👨‍🦱', role: 'user' },
+  { id: 'user-care-002', name: '狗狗爱好者王哥', avatar: '👨', role: 'user' },
+  { id: 'user-care-003', name: '猫咪之家张姐', avatar: '👩', role: 'user' },
 ];
 
 export default function Layout() {
@@ -48,6 +51,9 @@ export default function Layout() {
             <nav className="hidden md:flex items-center gap-1">
               <NavLink to="/" className={navLinkClass} end>
                 首页
+              </NavLink>
+              <NavLink to="/boarding" className={navLinkClass}>
+                寄养服务
               </NavLink>
               <NavLink to="/community" className={navLinkClass}>
                 社区广场
@@ -101,6 +107,9 @@ export default function Layout() {
           <nav className="md:hidden flex items-center gap-1 mt-3 overflow-x-auto pb-1">
             <NavLink to="/" className={navLinkClass} end>
               首页
+            </NavLink>
+            <NavLink to="/boarding" className={navLinkClass}>
+              寄养
             </NavLink>
             <NavLink to="/community" className={navLinkClass}>
               社区

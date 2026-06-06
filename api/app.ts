@@ -20,6 +20,7 @@ import healthRoutes from './routes/health.js'
 import followupRoutes from './routes/followup.js'
 import lostRoutes from './routes/lost.js'
 import communityRoutes from './routes/community.js'
+import boardingRoutes from './routes/boarding.js'
 import { store } from './store.js'
 import { seed } from './data/seed.js'
 
@@ -49,6 +50,7 @@ app.use('/api/health', healthRoutes)
 app.use('/api/followup', followupRoutes)
 app.use('/api/lost', lostRoutes)
 app.use('/api/community', communityRoutes)
+app.use('/api/boarding', boardingRoutes)
 
 app.use(
   '/api/status',

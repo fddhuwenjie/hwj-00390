@@ -24,6 +24,19 @@ import type {
   HealthStatus,
   LostPetStatus,
   PostTag,
+  BoardingCaregiver,
+  BoardingCaregiverWithScore,
+  BoardingRequest,
+  BoardingOrder,
+  BoardingOrderStatus,
+  BoardingDiary,
+  BoardingReview,
+  BoardingStats,
+  Species,
+  BoardingMethod,
+  CaregiverIncomeStats,
+  DiaryAlertType,
+  CaregiverStatus,
 } from '../shared/types.js';
 
 type HasId = { id: string };
@@ -101,6 +114,12 @@ class MockStore {
   postComments: Collection<PostComment> = new Collection<PostComment>();
   postLikes: Collection<{ id: string; postId: string; userId: string; createdAt: string }> = new Collection();
   userFollows: Collection<UserFollow> = new Collection<UserFollow>();
+
+  boardingCaregivers: Collection<BoardingCaregiver> = new Collection<BoardingCaregiver>();
+  boardingRequests: Collection<BoardingRequest> = new Collection<BoardingRequest>();
+  boardingOrders: Collection<BoardingOrder> = new Collection<BoardingOrder>();
+  boardingDiaries: Collection<BoardingDiary> = new Collection<BoardingDiary>();
+  boardingReviews: Collection<BoardingReview> = new Collection<BoardingReview>();
 
   private static instance: MockStore;
 
@@ -707,6 +726,382 @@ class MockStore {
     return this.userFollows
       .filter((f) => f.followerId === followerId)
       .map((f) => f.followingId);
+  }
+
+  registerCaregiver(data: Omit<BoardingCaregiver, 'id' | 'status' | 'createdAt' | 'totalOrders' | 'averageRating'>): BoardingCaregiver {
+    const existing = this.boardingCaregivers.find(c => c.userId === data.userId);
+    if (existing) {
+      return this.boardingCaregivers.update(existing.id, { ...data, status: 'pending' }) || existing;
+    }
+    const caregiver: BoardingCaregiver = {
+      ...data,
+      id: generateId(),
+      status: 'pending',
+      createdAt: now(),
+      totalOrders: 0,
+      averageRating: 0,
+    };
+    this.boardingCaregivers.unshift(caregiver);
+    return caregiver;
+  }
+
+  getCaregiverByUser(userId: string): BoardingCaregiver | undefined {
+    return this.boardingCaregivers.find(c => c.userId === userId);
+  }
+
+  getCaregiverById(id: string): BoardingCaregiver | undefined {
+    return this.boardingCaregivers.getById(id);
+  }
+
+  getAllCaregivers(status?: CaregiverStatus): BoardingCaregiver[] {
+    let result = [...this.boardingCaregivers];
+    if (status) {
+      result = result.filter(c => c.status === status);
+    }
+    return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  reviewCaregiver(id: string, approved: boolean, reviewNote?: string): BoardingCaregiver | null {
+    const caregiver = this.boardingCaregivers.getById(id);
+    if (!caregiver) return null;
+    return this.boardingCaregivers.update(id, {
+      status: approved ? 'approved' : 'rejected',
+      reviewNote,
+      reviewedAt: now(),
+    }) || null;
+  }
+
+  updateCaregiverAvailability(id: string, availableDates: string[]): BoardingCaregiver | null {
+    return this.boardingCaregivers.update(id, { availableDates }) || null;
+  }
+
+  createBoardingRequest(data: Omit<BoardingRequest, 'id' | 'status' | 'createdAt'>): BoardingRequest {
+    const request: BoardingRequest = {
+      ...data,
+      id: generateId(),
+      status: 'open',
+      createdAt: now(),
+    };
+    this.boardingRequests.unshift(request);
+    return request;
+  }
+
+  getBoardingRequestsByOwner(ownerId: string): BoardingRequest[] {
+    return this.boardingRequests
+      .filter(r => r.ownerId === ownerId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  getAllBoardingRequests(status?: BoardingRequest['status']): BoardingRequest[] {
+    let result = [...this.boardingRequests];
+    if (status) {
+      result = result.filter(r => r.status === status);
+    }
+    return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  getBoardingRequestById(id: string): BoardingRequest | undefined {
+    return this.boardingRequests.getById(id);
+  }
+
+  private calculateDays(startDate: string, endDate: string): number {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diff = end.getTime() - start.getTime();
+    return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  }
+
+  private isDateInRange(dateStr: string, startStr: string, endStr: string): boolean {
+    const date = new Date(dateStr);
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    return date >= start && date <= end;
+  }
+
+  private datesOverlap(dates: string[], start: string, end: string): boolean {
+    return dates.some(d => this.isDateInRange(d, start, end));
+  }
+
+  calculateCaregiverMatchScore(caregiver: BoardingCaregiver, request: BoardingRequest): number {
+    let score = 0;
+
+    if (!caregiver.acceptedSpecies.includes(request.petSpecies)) return 0;
+
+    const requestStart = new Date(request.startDate);
+    const requestEnd = new Date(request.endDate);
+    const allDatesAvailable = caregiver.availableDates.some(d => {
+      const dt = new Date(d);
+      return dt >= requestStart && dt <= requestEnd;
+    });
+    if (!allDatesAvailable && caregiver.availableDates.length > 0) {
+      score -= 20;
+    } else {
+      score += 25;
+    }
+
+    if (caregiver.pricePerDay >= request.budgetMin && caregiver.pricePerDay <= request.budgetMax) {
+      score += 30;
+    } else if (caregiver.pricePerDay < request.budgetMin) {
+      score += 20;
+    } else if (caregiver.pricePerDay <= request.budgetMax * 1.2) {
+      score += 10;
+    } else {
+      score -= 30;
+    }
+
+    score += Math.min(caregiver.petExperienceYears * 2, 20);
+    score += caregiver.averageRating * 3;
+
+    if (caregiver.hasYard && (request.petSpecies === 'dog')) {
+      score += 10;
+    }
+
+    if (caregiver.livingArea >= 80) score += 5;
+
+    return Math.max(0, Math.min(100, score));
+  }
+
+  findMatchingCaregivers(requestId: string): BoardingCaregiverWithScore[] {
+    const request = this.boardingRequests.getById(requestId);
+    if (!request) return [];
+
+    const approvedCaregivers = this.boardingCaregivers.filter(c => c.status === 'approved');
+
+    const scored: BoardingCaregiverWithScore[] = approvedCaregivers.map(c => ({
+      ...c,
+      matchScore: this.calculateCaregiverMatchScore(c, request),
+    }));
+
+    scored.sort((a, b) => b.matchScore - a.matchScore);
+    return scored.filter(c => c.matchScore > 0);
+  }
+
+  createBoardingOrder(data: {
+    requestId: string;
+    ownerId: string;
+    ownerName: string;
+    caregiverId: string;
+    caregiverName: string;
+    caregiverAvatar: string;
+    petId: string;
+    petName: string;
+    petPhoto: string;
+    startDate: string;
+    endDate: string;
+    boardingMethod: BoardingMethod;
+    pricePerDay: number;
+    handoverNotes: string;
+    extraFees?: number;
+    discount?: number;
+  }): BoardingOrder {
+    const days = this.calculateDays(data.startDate, data.endDate);
+    const baseFee = days * data.pricePerDay;
+    const extraFees = data.extraFees || 0;
+    const discount = data.discount || 0;
+    const totalAmount = baseFee + extraFees - discount;
+
+    const order: BoardingOrder = {
+      id: generateId(),
+      requestId: data.requestId,
+      ownerId: data.ownerId,
+      ownerName: data.ownerName,
+      caregiverId: data.caregiverId,
+      caregiverName: data.caregiverName,
+      caregiverAvatar: data.caregiverAvatar,
+      petId: data.petId,
+      petName: data.petName,
+      petPhoto: data.petPhoto,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      boardingMethod: data.boardingMethod,
+      cost: { baseFee, extraFees, discount, totalAmount, days },
+      handoverNotes: data.handoverNotes,
+      status: 'pending_confirm',
+      createdAt: now(),
+    };
+    this.boardingOrders.unshift(order);
+
+    this.boardingRequests.update(data.requestId, { status: 'matched' });
+
+    return order;
+  }
+
+  getBoardingOrdersByOwner(ownerId: string): BoardingOrder[] {
+    return this.boardingOrders
+      .filter(o => o.ownerId === ownerId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  getBoardingOrdersByCaregiver(caregiverId: string): BoardingOrder[] {
+    return this.boardingOrders
+      .filter(o => o.caregiverId === caregiverId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  getAllBoardingOrders(status?: BoardingOrderStatus): BoardingOrder[] {
+    let result = [...this.boardingOrders];
+    if (status) {
+      result = result.filter(o => o.status === status);
+    }
+    return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  getBoardingOrderById(id: string): BoardingOrder | undefined {
+    return this.boardingOrders.getById(id);
+  }
+
+  updateBoardingOrderStatus(id: string, status: BoardingOrderStatus, disputeReason?: string): BoardingOrder | null {
+    const order = this.boardingOrders.getById(id);
+    if (!order) return null;
+
+    const updates: Partial<BoardingOrder> = { status };
+    const nowTime = now();
+    if (status === 'confirmed') updates.confirmedAt = nowTime;
+    if (status === 'in_progress') updates.startedAt = nowTime;
+    if (status === 'completed') {
+      updates.completedAt = nowTime;
+      const caregiver = this.boardingCaregivers.getById(order.caregiverId);
+      if (caregiver) {
+        const newTotal = caregiver.totalOrders + 1;
+        this.boardingCaregivers.update(caregiver.id, { totalOrders: newTotal });
+      }
+    }
+    if (status === 'cancelled') updates.cancelledAt = nowTime;
+    if (status === 'disputed' && disputeReason) updates.disputeReason = disputeReason;
+
+    return this.boardingOrders.update(id, updates) || null;
+  }
+
+  markOrderDisputed(id: string, reason: string): BoardingOrder | null {
+    return this.updateBoardingOrderStatus(id, 'disputed', reason);
+  }
+
+  addBoardingDiary(data: Omit<BoardingDiary, 'id' | 'createdAt'>): BoardingDiary {
+    const diary: BoardingDiary = {
+      ...data,
+      id: generateId(),
+      createdAt: now(),
+    };
+    this.boardingDiaries.unshift(diary);
+    return diary;
+  }
+
+  getDiariesByOrder(orderId: string): BoardingDiary[] {
+    return this.boardingDiaries
+      .filter(d => d.orderId === orderId)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  addBoardingReview(data: Omit<BoardingReview, 'id' | 'createdAt'>): BoardingReview {
+    const review: BoardingReview = {
+      ...data,
+      id: generateId(),
+      createdAt: now(),
+    };
+    this.boardingReviews.unshift(review);
+
+    const caregiver = this.boardingCaregivers.find(c => c.userId === data.targetUserId);
+    if (caregiver) {
+      const allReviews = this.boardingReviews.filter(r => r.targetUserId === data.targetUserId);
+      const avg = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
+      this.boardingCaregivers.update(caregiver.id, { averageRating: Number(avg.toFixed(1)) });
+    }
+
+    return review;
+  }
+
+  getReviewsByOrder(orderId: string): BoardingReview[] {
+    return this.boardingReviews
+      .filter(r => r.orderId === orderId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  getReviewsByUser(userId: string): BoardingReview[] {
+    return this.boardingReviews
+      .filter(r => r.targetUserId === userId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  getCaregiverIncomeStats(caregiverUserId: string): CaregiverIncomeStats[] {
+    const caregiver = this.boardingCaregivers.find(c => c.userId === caregiverUserId);
+    if (!caregiver) return [];
+
+    const orders = this.boardingOrders.filter(
+      o => o.caregiverId === caregiver.id && o.status === 'completed'
+    );
+
+    const monthlyMap = new Map<string, CaregiverIncomeStats>();
+
+    orders.forEach(order => {
+      const date = new Date(order.completedAt || order.createdAt);
+      const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+      const existing = monthlyMap.get(month) || { month, orders: 0, income: 0, rating: 0 };
+      existing.orders += 1;
+      existing.income += order.cost.totalAmount;
+      monthlyMap.set(month, existing);
+    });
+
+    const result: CaregiverIncomeStats[] = [];
+    monthlyMap.forEach((value, key) => {
+      result.push({ ...value, rating: caregiver.averageRating });
+    });
+
+    return result.sort((a, b) => b.month.localeCompare(a.month));
+  }
+
+  getBoardingStats(): BoardingStats {
+    const monthlyMap = new Map<string, { count: number; revenue: number }>();
+    const speciesMap = new Map<string, number>();
+
+    this.boardingOrders.forEach(order => {
+      const date = new Date(order.createdAt);
+      const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const existing = monthlyMap.get(month) || { count: 0, revenue: 0 };
+      existing.count += 1;
+      if (order.status === 'completed') {
+        existing.revenue += order.cost.totalAmount;
+      }
+      monthlyMap.set(month, existing);
+
+      const request = this.boardingRequests.getById(order.requestId);
+      if (request) {
+        speciesMap.set(request.petSpecies, (speciesMap.get(request.petSpecies) || 0) + 1);
+      }
+    });
+
+    const monthlyOrders: { month: string; count: number; revenue: number }[] = [];
+    monthlyMap.forEach((value, key) => {
+      monthlyOrders.push({ month: key, ...value });
+    });
+    monthlyOrders.sort((a, b) => a.month.localeCompare(b.month));
+
+    const speciesDistribution: { species: Species; count: number }[] = [];
+    speciesMap.forEach((count, species) => {
+      speciesDistribution.push({ species: species as Species, count });
+    });
+
+    const totalRevenue = this.boardingOrders
+      .filter(o => o.status === 'completed')
+      .reduce((sum, o) => sum + o.cost.totalAmount, 0);
+
+    return {
+      monthlyOrders,
+      speciesDistribution,
+      activeCaregivers: this.boardingCaregivers.filter(c => c.status === 'approved').length,
+      totalRevenue,
+      totalOrders: this.boardingOrders.length,
+      pendingCaregivers: this.boardingCaregivers.filter(c => c.status === 'pending').length,
+      disputedOrders: this.boardingOrders.filter(o => o.status === 'disputed').length,
+    };
+  }
+
+  getAdoptedPetsByUser(userId: string): Pet[] {
+    const approvedApps = this.applications.filter(
+      a => a.applicantId === userId && a.status === 'approved'
+    );
+    const petIds = approvedApps.map(a => a.petId);
+    return this.pets.filter(p => petIds.includes(p.id));
   }
 }
 
