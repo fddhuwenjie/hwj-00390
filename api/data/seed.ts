@@ -38,6 +38,65 @@ function randomSubset<T>(arr: T[], min: number, max: number): T[] {
   return shuffled.slice(0, count);
 }
 
+function randomFloat(min: number, max: number, decimals: number = 1): number {
+  const value = Math.random() * (max - min) + min;
+  return Number(value.toFixed(decimals));
+}
+
+const SMALL_DOG_BREEDS = ['泰迪', '博美', '比熊', '柯基'];
+const MEDIUM_DOG_BREEDS = ['柴犬', '边境牧羊犬', '萨摩耶'];
+const LARGE_DOG_BREEDS = ['金毛寻回犬', '拉布拉多', '哈士奇'];
+
+function generateAgeForSpecies(species: Species): number {
+  switch (species) {
+    case 'cat':
+      return randomInt(2, 216);
+    case 'dog':
+      return randomInt(2, 180);
+    case 'rabbit':
+      return randomInt(2, 120);
+    case 'bird':
+      return randomInt(2, 240);
+    case 'other':
+      return randomInt(2, 60);
+    default:
+      return randomInt(2, 120);
+  }
+}
+
+function generateWeightForPet(species: Species, breed: string): number {
+  if (species === 'cat') {
+    return randomFloat(3, 7);
+  }
+  if (species === 'dog') {
+    if (SMALL_DOG_BREEDS.includes(breed)) {
+      if (breed === '柯基') return randomFloat(8, 14);
+      return randomFloat(2, 8);
+    }
+    if (MEDIUM_DOG_BREEDS.includes(breed)) {
+      return randomFloat(10, 25);
+    }
+    if (LARGE_DOG_BREEDS.includes(breed)) {
+      return randomFloat(25, 40);
+    }
+    return randomFloat(5, 20);
+  }
+  if (species === 'rabbit') {
+    return randomFloat(1, 3);
+  }
+  if (species === 'bird') {
+    return randomFloat(0.02, 1, 2);
+  }
+  if (species === 'other') {
+    if (breed === '仓鼠') return randomFloat(0.05, 0.15, 2);
+    if (breed === '龙猫') return randomFloat(0.4, 0.8, 2);
+    if (breed === '荷兰猪') return randomFloat(0.7, 1.2, 2);
+    if (breed === '刺猬') return randomFloat(0.3, 0.7, 2);
+    return randomFloat(0.1, 1.5, 2);
+  }
+  return randomFloat(1, 10);
+}
+
 const CAT_PHOTOS = [
   'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600',
   'https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=600',
@@ -155,9 +214,9 @@ function createPets(users: User[]): Pet[] {
         name: config.names[i % config.names.length],
         species: config.species,
         breed: config.breeds[i % config.breeds.length],
-        age: randomInt(1, 120),
+        age: generateAgeForSpecies(config.species),
         gender: randomChoice<Gender>(['male', 'female']),
-        weight: Number((Math.random() * 20 + 0.5).toFixed(1)),
+        weight: generateWeightForPet(config.species, config.breeds[i % config.breeds.length]),
         neutered: Math.random() > 0.4,
         healthDescription: '身体健康，已完成基础疫苗接种，定期驱虫。性格温顺，适合家庭饲养。',
         personalityTags: randomSubset<PersonalityTag>(ALL_PERSONALITY_TAGS, 2, 4),
